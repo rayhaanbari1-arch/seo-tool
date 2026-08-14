@@ -34,8 +34,10 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"
 
 [Files]
-Source: "dist\{#AppExeName}"; DestDir: "{app}\app"; Flags: ignoreversion
-Source: "playwright-browsers\*"; DestDir: "{app}\browsers"; Flags: ignoreversion recursesubdirs createallsubdirs
+; {#SourcePath} = directory of this .iss file (windows-app\)
+; ..\  = project root where PyInstaller and the Chromium copy land
+Source: "{#SourcePath}\..\dist\{#AppExeName}"; DestDir: "{app}\app"; Flags: ignoreversion
+Source: "{#SourcePath}\..\playwright-browsers\*"; DestDir: "{app}\browsers"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\app\{#AppExeName}"
