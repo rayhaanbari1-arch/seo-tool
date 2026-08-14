@@ -66,8 +66,10 @@ def generate_report(
             if not items:
                 continue
 
-            section_clicks = sum(i['clicks'] for i in items)
-            section_users = sum(i['users'] for i in items)
+            # Use the grand total from the Excel sheet (accurate unique user count).
+            # Summing per-element users over-counts because one user can click many elements.
+            section_clicks = data.get(f'{page_type}_total_clicks') or sum(i['clicks'] for i in items)
+            section_users  = data.get(f'{page_type}_total_users')  or sum(i['users']  for i in items)
             project_clicks += section_clicks
             project_users += section_users
 

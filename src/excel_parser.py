@@ -100,6 +100,11 @@ def parse_excel(file_or_path) -> dict:
 
         if click_id_col == 0:
             # Format B: single LP-only section, cols A=0, B=1, C=2
+            # Row immediately after header is the grand total row
+            totals_row = df.iloc[header_row_idx + 1]
+            lp_total_clicks = _to_int(totals_row.iloc[1] if df.shape[1] > 1 else 0)
+            lp_total_users  = _to_int(totals_row.iloc[2] if df.shape[1] > 2 else 0)
+
             lp_items = []
             for _, row in df.iloc[header_row_idx + 1:].iterrows():
                 cid = _clean_click_id(row.iloc[0] if df.shape[1] > 0 else None)
@@ -118,6 +123,8 @@ def parse_excel(file_or_path) -> dict:
                     'project_title': '',
                     'lp': lp_items,
                     'project': [],
+                    'lp_total_clicks': lp_total_clicks,
+                    'lp_total_users':  lp_total_users,
                 }
 
         elif click_id_col == 1:
@@ -132,6 +139,13 @@ def parse_excel(file_or_path) -> dict:
                 lp_title = f'{sheet_name} LP'
             if project_title in {'nan', 'None', ''}:
                 project_title = f'{sheet_name} Project Page'
+
+            # Grand totals are in the row immediately after the header
+            totals_row = df.iloc[header_row_idx + 1]
+            lp_total_clicks      = _to_int(totals_row.iloc[2] if df.shape[1] > 2 else 0)
+            lp_total_users       = _to_int(totals_row.iloc[3] if df.shape[1] > 3 else 0)
+            project_total_clicks = _to_int(totals_row.iloc[6] if df.shape[1] > 6 else 0)
+            project_total_users  = _to_int(totals_row.iloc[7] if df.shape[1] > 7 else 0)
 
             lp_items = []
             project_items = []
@@ -163,6 +177,10 @@ def parse_excel(file_or_path) -> dict:
                     'project_title': project_title,
                     'lp': lp_items,
                     'project': project_items,
+                    'lp_total_clicks':      lp_total_clicks,
+                    'lp_total_users':       lp_total_users,
+                    'project_total_clicks': project_total_clicks,
+                    'project_total_users':  project_total_users,
                 }
 
     return result
