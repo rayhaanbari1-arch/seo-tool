@@ -22,9 +22,9 @@ if _IS_BUNDLED:
     _BUNDLE_DIR = sys._MEIPASS
     sys.path.insert(0, _BUNDLE_DIR)
 
-    # sys.executable = %LOCALAPPDATA%\SEO-Event-Tracker\app\SEO-Event-Tracker.exe
-    _APP_DIR      = os.path.dirname(sys.executable)
-    _INSTALL_ROOT = os.path.normpath(os.path.join(_APP_DIR, '..'))
+    # Use %LOCALAPPDATA% directly — more reliable than computing from sys.executable
+    _LOCALAPPDATA = os.environ.get('LOCALAPPDATA', os.path.expanduser('~'))
+    _INSTALL_ROOT = os.path.join(_LOCALAPPDATA, 'SEO-Event-Tracker')
 
     # User data (DB, Chromium UI profile) — lives in %APPDATA%, survives reinstalls
     _DATA_DIR = os.path.join(
@@ -38,8 +38,7 @@ if _IS_BUNDLED:
 
     # Point Playwright to the browsers bundled by the installer
     _browsers_dir = os.path.join(_INSTALL_ROOT, 'browsers')
-    if os.path.isdir(_browsers_dir):
-        os.environ['PLAYWRIGHT_BROWSERS_PATH'] = _browsers_dir
+    os.environ['PLAYWRIGHT_BROWSERS_PATH'] = _browsers_dir  # set regardless; Playwright checks existence
 else:
     # Dev mode — project root is one level above windows-app/
     _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -69,14 +68,28 @@ def _find_chromium() -> str | None:
     """
     Find chrome.exe inside the installer-bundled playwright browsers folder.
     Playwright stores it as: browsers/chromium-REVISION/chrome-win/chrome.exe
+    Writes a debug log to %APPDATA%\SEO-Event-Tracker\launcher.log
     """
-    browsers_path = os.environ.get('PLAYWRIGHT_BROWSERS_PATH')
-    if not browsers_path or not os.path.isdir(browsers_path):
-        return None
-    matches = glob.glob(
-        os.path.join(browsers_path, 'chromium-*', 'chrome-win', 'chrome.exe')
-    )
-    return matches[0] if matches else None
+    browsers_path = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', '')
+    pattern = os.path.join(browsers_path, 'chromium-*', 'chrome-win', 'chrome.exe')
+    matches = glob.glob(pattern)
+    result = matches[0] if matches else None
+
+    # Write a small debug log so we can diagnose path issues
+    try:
+        log_path = os.path.join(_DATA_DIR, 'launcher.log')
+        with open(log_path, 'w') as f:
+            f.write(f'PLAYWRIGHT_BROWSERS_PATH = {browsers_path}\n')
+            f.write(f'browsers dir exists      = {os.path.isdir(browsers_path)}\n')
+            f.write(f'glob pattern             = {pattern}\n')
+            f.write(f'matches                  = {matches}\n')
+            f.write(f'chromium_exe             = {result}\n')
+            f.write(f'sys.executable           = {sys.executable}\n')
+            f.write(f'_IS_BUNDLED              = {_IS_BUNDLED}\n')
+    except Exception:
+        pass
+
+    return result
 
 
 def _launch_app_window(chromium_exe: str) -> subprocess.Popen:
