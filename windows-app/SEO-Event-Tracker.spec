@@ -23,13 +23,15 @@ pw_datas, pw_binaries, pw_hiddenimports = collect_all('playwright')
 
 a = Analysis(
     [os.path.join(SPECPATH, 'launcher.py')],
-    pathex=[PROJECT_ROOT],
+    pathex=[PROJECT_ROOT, SPECPATH],   # SPECPATH = windows-app/ so version.py is importable
     binaries=pw_binaries,
     datas=[
         # App assets
         (os.path.join(PROJECT_ROOT, 'templates'), 'templates'),
         (os.path.join(PROJECT_ROOT, 'static'),    'static'),
         (os.path.join(PROJECT_ROOT, 'src'),       'src'),
+        # Build-time version file (written by GitHub Actions)
+        (os.path.join(SPECPATH, 'version.py'),   '.'),
     ] + pw_datas,  # + playwright driver, node.exe, etc.
     hiddenimports=pw_hiddenimports + [
         # Flask ecosystem
