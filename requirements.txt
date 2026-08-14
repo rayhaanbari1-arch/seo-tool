@@ -1,0 +1,7 @@
+flask
+flask-sqlalchemy
+pandas
+openpyxl
+playwright
+pillow
+gunicorn

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ report_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --orange: #F26522;
+      --charcoal: #2D2D2D;
+      --gray-100: #F7F6F4;
+      --gray-200: #EBEBEB;
+      --gray-300: #D9D9D9;
+      --gray-500: #888;
+      --gray-700: #555;
+      --blue: #2980B9;
+      --green: #27AE60;
+      --white: #fff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--gray-100);
+      color: var(--charcoal);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .report-header {
+      background: var(--charcoal);
+      color: var(--white);
+      padding: 36px 40px 32px;
+    }
+    .report-header h1 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 32px;
+      letter-spacing: 0.03em; text-transform: uppercase; margin-bottom: 8px;
+    }
+    .report-header h1 span { color: var(--orange); }
+    .report-meta { font-size: 12px; color: var(--gray-300); margin-top: 4px; }
+
+    /* ── Summary ── */
+    .summary {
+      background: var(--white); border-bottom: 2px solid var(--gray-200);
+      padding: 28px 40px;
+    }
+    .summary-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 18px; text-transform: uppercase;
+      letter-spacing: 0.04em; margin-bottom: 16px;
+    }
+    .summary-stats {
+      display: flex; gap: 32px; margin-bottom: 20px;
+    }
+    .summary-stat {
+      display: flex; flex-direction: column;
+    }
+    .summary-stat-value {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 28px; color: var(--orange);
+    }
+    .summary-stat-label {
+      font-size: 11px; color: var(--gray-500); text-transform: uppercase;
+      letter-spacing: 0.06em; font-weight: 600;
+    }
+    .top-performers-title {
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 8px;
+    }
+    .top-performers-list {
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .top-performer {
+      background: var(--gray-100); border: 1px solid var(--gray-200);
+      border-radius: 3px; padding: 10px 16px; font-size: 13px;
+      display: flex; flex-direction: column; gap: 2px; min-width: 160px;
+    }
+    .top-performer-name { font-weight: 600; }
+    .top-performer-stats { font-size: 11px; color: var(--gray-500); }
+    .top-performer-stats strong { color: var(--charcoal); }
+    .top-performer-cta { font-size: 11px; color: var(--gray-700); }
+
+    .insight-banner {
+      background: #fff8f4; border-left: 4px solid var(--orange);
+      padding: 14px 20px; margin: 24px 40px; border-radius: 2px;
+      font-size: 13px; color: var(--gray-700);
+    }
+    .insight-banner strong { color: var(--charcoal); }
+
+    .jump-nav {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--charcoal); border-bottom: 2px solid var(--orange);
+      padding: 0 40px; display: flex; overflow-x: auto; scrollbar-width: none;
+    }
+    .jump-nav::-webkit-scrollbar { display: none; }
+    .jump-nav a {
+      display: block; padding: 14px 18px; color: var(--gray-300);
+      text-decoration: none; font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 13px; letter-spacing: 0.06em;
+      text-transform: uppercase; white-space: nowrap;
+      border-bottom: 3px solid transparent; transition: color 0.15s, border-color 0.15s;
+    }
+    .jump-nav a:hover { color: var(--white); border-bottom-color: var(--orange); }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 32px 40px 60px; }
+
+    .project { margin-bottom: 56px; }
+
+    .project-name-header {
+      background: var(--charcoal); color: var(--white);
+      padding: 20px 28px; display: flex; align-items: center;
+      justify-content: space-between; gap: 16px;
+      border-radius: 3px 3px 0 0;
+    }
+    .project-name-header h2 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 24px;
+      letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .project-name-header h2 span { color: var(--orange); margin-right: 10px; }
+    .project-summary-bar {
+      background: #3a3a3a; color: var(--gray-300);
+      padding: 8px 28px; font-size: 12px;
+      display: flex; gap: 24px;
+    }
+    .project-summary-bar strong { color: var(--white); }
+
+    .section-header {
+      background: #4a4a4a; color: var(--white);
+      padding: 14px 28px; display: flex; align-items: center;
+      justify-content: space-between; gap: 16px;
+      margin-top: 2px;
+    }
+    .section-header h3 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 17px;
+      letter-spacing: 0.04em; text-transform: uppercase;
+    }
+
+    .view-page-btn {
+      display: inline-block; background: var(--orange); color: var(--white);
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 8px 16px; border-radius: 2px;
+      text-decoration: none; white-space: nowrap; flex-shrink: 0;
+    }
+
+    .section-bar {
+      background: #3D3D3D; color: var(--gray-200);
+      padding: 10px 28px; font-size: 12px; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .section-bar .found-badge {
+      background: var(--green); color: var(--white);
+      padding: 3px 10px; border-radius: 2px;
+      font-size: 10px; font-weight: 700;
+    }
+    .section-bar .notfound-badge {
+      background: var(--gray-500); color: var(--white);
+      padding: 3px 10px; border-radius: 2px;
+      font-size: 10px; font-weight: 700;
+    }
+
+    /* ── Section Stats Bar ── */
+    .section-stats-bar {
+      background: var(--white); padding: 12px 28px;
+      border-bottom: 2px solid var(--gray-200);
+      display: flex; gap: 24px; font-size: 13px; color: var(--gray-500);
+    }
+    .section-stats-bar strong { color: var(--charcoal); }
+
+    /* ── Page Screenshot ── */
+    .page-screenshot {
+      background: var(--white); padding: 16px;
+      border-bottom: 2px solid var(--gray-200);
+    }
+    .page-screenshot img {
+      width: 100%; height: auto; display: block;
+      border: 1px solid var(--gray-200); border-radius: 2px;
+    }
+    .page-screenshot-note {
+      font-size: 11px; color: var(--gray-500);
+      margin-top: 8px; font-style: italic;
+    }
+
+    /* ── CTA Grid ── */
+    .cta-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 2px; background: var(--gray-200);
+      border-radius: 0 0 3px 3px; overflow: hidden;
+    }
+
+    .cta-card {
+      background: var(--white); padding: 18px 20px 22px; position: relative;
+    }
+    .cta-card.found { border-left: 3px solid var(--green); }
+    .cta-card.notfound { border-left: 3px solid var(--gray-300); }
+
+    .cta-rank {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 13px; color: var(--orange);
+      margin-bottom: 6px; letter-spacing: 0.04em;
+    }
+
+    .cta-thumb {
+      width: 100%; border: 1px solid var(--gray-200);
+      border-radius: 2px; overflow: hidden; background: var(--gray-100);
+      margin-bottom: 12px;
+    }
+    .cta-thumb img { width: 100%; height: auto; display: block; }
+
+    .cta-name {
+      font-weight: 600; font-size: 14px; margin-bottom: 2px; word-break: break-word;
+    }
+    .cta-id {
+      font-size: 11px; color: var(--gray-500); margin-bottom: 8px;
+      font-family: monospace; word-break: break-all;
+    }
+    .cta-stats { font-size: 12.5px; color: var(--gray-500); margin-bottom: 8px; }
+    .cta-stats strong { color: var(--charcoal); }
+
+    .badge {
+      display: inline-block; font-size: 10px; font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 3px 8px; border-radius: 2px;
+    }
+    .badge-found { background: #F0FAF4; color: var(--green); }
+    .badge-notfound { background: var(--gray-100); color: var(--gray-500); }
+
+    .no-data {
+      background: var(--white); padding: 40px; text-align: center;
+      color: var(--gray-500); font-size: 13px; border-radius: 0 0 3px 3px;
+    }
+
+    .report-footer {
+      text-align: center; padding: 24px;
+      font-size: 12px; color: var(--gray-500);
+      border-top: 1px solid var(--gray-200); margin-top: 40px;
+    }
+
+    @media (max-width: 900px) {
+      .container { padding: 20px 16px 40px; }
+      .report-header { padding: 24px 16px 20px; }
+      .summary { padding: 20px 16px; }
+      .summary-stats { flex-direction: column; gap: 16px; }
+      .jump-nav { padding: 0 16px; }
+      .insight-banner { margin: 16px; }
+      .cta-grid { grid-template-columns: 1fr; }
+      .project-name-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .section-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .top-performers-list { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="report-header">
+    <h1>{{ client_name }} — <span>CTA Performance</span></h1>
+    <div class="report-meta">Auto-generated report &nbsp;·&nbsp; Ranked by total clicks (highest first)</div>
+  </div>
+
+  {# ── Summary Section ── #}
+  {% if projects %}
+  <div class="summary">
+    <div class="summary-title">Overview</div>
+    <div class="summary-stats">
+      <div class="summary-stat">
+        <div class="summary-stat-value">{{ "{:,}".format(total_clicks) }}</div>
+        <div class="summary-stat-label">Total Clicks</div>
+      </div>
+      <div class="summary-stat">
+        <div class="summary-stat-value">{{ "{:,}".format(total_users) }}</div>
+        <div class="summary-stat-label">Total Users</div>
+      </div>
+      <div class="summary-stat">
+        <div class="summary-stat-value">{{ projects | length }}</div>
+        <div class="summary-stat-label">Projects Tracked</div>
+      </div>
+    </div>
+
+    {% if top_performers %}
+    <div class="top-performers-title">Top Performers</div>
+    <div class="top-performers-list">
+      {% for p in top_performers %}
+      <div class="top-performer">
+        <div class="top-performer-name">{{ p.name }}</div>
+        <div class="top-performer-stats"><strong>{{ "{:,}".format(p.project_clicks) }}</strong> clicks &middot; <strong>{{ "{:,}".format(p.project_users) }}</strong> users</div>
+        {% if p.top_cta %}
+        <div class="top-performer-cta">Top CTA: {{ p.top_cta }} ({{ "{:,}".format(p.top_cta_clicks) }})</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="insight-banner">
+    <strong>How to read this report:</strong>
+    Each CTA is ranked by total <strong>click events</strong>.
+    <em>Clicks</em> = total event fires &nbsp;·&nbsp; <em>Users</em> = unique visitors who clicked.
+    Elements with a <span style="color:#27AE60;font-weight:700;">green</span> border were found in the page DOM and are highlighted on the screenshot above.
+  </div>
+
+  {% if projects %}
+  <nav class="jump-nav">
+    {% for project in projects %}
+    <a href="#{{ project.slug }}">{{ project.name }}</a>
+    {% endfor %}
+  </nav>
+  {% endif %}
+
+  <div class="container">
+    {% for project in projects %}
+    <section class="project" id="{{ project.slug }}">
+
+      {# ── Project Name Header ── #}
+      <div class="project-name-header">
+        <h2><span>{{ project.name }}</span></h2>
+      </div>
+      <div class="project-summary-bar">
+        <span><strong>{{ "{:,}".format(project.project_clicks) }}</strong> total clicks</span>
+        <span><strong>{{ "{:,}".format(project.project_users) }}</strong> total users</span>
+        <span><strong>{{ project.sections | length }}</strong> page{{ 's' if project.sections | length != 1 }} tracked</span>
+      </div>
+
+      {# ── Sections (LP / Project Page) ── #}
+      {% for section in project.sections %}
+
+      <div class="section-header">
+        <h3>{% if section.page_type == 'lp' %}Landing Page{% else %}Project Page{% endif %} — {{ section.title }}</h3>
+        {% if section.page_url %}
+        <a href="{{ section.page_url }}" class="view-page-btn" target="_blank" rel="noopener">View Live Page</a>
+        {% endif %}
+      </div>
+
+      <div class="section-bar">
+        <span>{{ section.total_ctas }} CTAs tracked</span>
+        <span>
+          {% if section.found_count > 0 %}
+          <span class="found-badge">{{ section.found_count }} / {{ section.total_ctas }} elements found in DOM</span>
+          {% else %}
+          <span class="notfound-badge">Elements tracked via GTM (not in DOM attributes)</span>
+          {% endif %}
+        </span>
+      </div>
+
+      {# ── Section Stats ── #}
+      <div class="section-stats-bar">
+        <span><strong>{{ "{:,}".format(section.section_clicks) }}</strong> clicks on this page</span>
+        <span><strong>{{ "{:,}".format(section.section_users) }}</strong> users on this page</span>
+      </div>
+
+      {# ── Full-page screenshot ── #}
+      {% if section.screenshot %}
+      <div class="page-screenshot">
+        <img src="data:image/jpeg;base64,{{ section.screenshot }}"
+             alt="{{ project.name }} {{ section.title }} page screenshot" loading="lazy">
+        {% if section.found_count > 0 %}
+        <div class="page-screenshot-note">
+          {{ section.found_count }} tracked element{{ 's' if section.found_count != 1 }} highlighted on the screenshot above.
+        </div>
+        {% else %}
+        <div class="page-screenshot-note">
+          Tracking IDs are managed via Google Tag Manager — elements are not directly identifiable in the DOM.
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {# ── CTA Cards Grid ── #}
+      {% if section.cards %}
+      <div class="cta-grid">
+        {% for card in section.cards %}
+        <div class="cta-card {{ 'found' if card.found else 'notfound' }}">
+          <div class="cta-rank">#{{ card.rank }}</div>
+
+          {% if card.crop %}
+          <div class="cta-thumb">
+            <img src="data:image/jpeg;base64,{{ card.crop }}" alt="{{ card.display_name }}" loading="lazy">
+          </div>
+          {% endif %}
+
+          <div class="cta-name">{{ card.display_name }}</div>
+          <div class="cta-id">{{ card.click_id }}</div>
+
+          <div class="cta-stats">
+            <strong>{{ "{:,}".format(card.clicks) }}</strong> clicks
+            &nbsp;&middot;&nbsp;
+            <strong>{{ "{:,}".format(card.users) }}</strong> users
+          </div>
+
+          {% if card.found %}
+          <span class="badge badge-found">Found in DOM</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="no-data">No CTA data available for this page.</div>
+      {% endif %}
+
+      {% endfor %}
+    </section>
+    {% endfor %}
+
+    {% if not projects %}
+    <div class="no-data" style="margin-top:40px;">
+      No projects found. Check that your Excel sheet names match the project names in your client links.
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="report-footer">
+    Generated by SEO Event Tracker &nbsp;·&nbsp; {{ client_name }}
+  </div>
+
+</body>
+</html>

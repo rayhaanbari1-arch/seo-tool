@@ -1,0 +1,51 @@
+name: Build Windows App
+
+# Triggers: push to main/master, or manually from the Actions tab
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'app.py'
+      - 'src/**'
+      - 'templates/**'
+      - 'static/**'
+      - 'requirements.txt'
+      - 'windows-app/**'
+  workflow_dispatch:   # "Run workflow" button in GitHub Actions UI
+
+jobs:
+  build:
+    name: Build .exe on Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install app dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Build .exe
+        run: pyinstaller windows-app/SEO-Event-Tracker.spec --clean --noconfirm
+
+      - name: Upload .exe as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SEO-Event-Tracker-Windows
+          path: dist/SEO-Event-Tracker.exe
+          retention-days: 30
+
+      - name: Show file size
+        run: |
+          $size = (Get-Item dist/SEO-Event-Tracker.exe).length / 1MB
+          Write-Host "Build complete: $([math]::Round($size, 1)) MB"
+        shell: pwsh
