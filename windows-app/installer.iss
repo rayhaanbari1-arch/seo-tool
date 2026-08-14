@@ -41,7 +41,7 @@ Source: "{#SourcePath}\..\playwright-browsers\*"; DestDir: "{app}\browsers"; Fla
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\app\{#AppExeName}"
-Name: "{commondesktop}\{#AppName}"; Filename: "{app}\app\{#AppExeName}"; Tasks: desktopicon
+Name: "{userdesktop}\{#AppName}"; Filename: "{app}\app\{#AppExeName}"; Tasks: desktopicon
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
