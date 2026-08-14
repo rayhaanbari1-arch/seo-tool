@@ -88,9 +88,8 @@ jobs:
       - name: Build installer with Inno Setup
         run: |
           $version = "${{ steps.meta.outputs.version }}"
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q `
-            "/DAppVersion=$version" `
-            "windows-app\installer.iss"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" "windows-app\installer.iss"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
           $size = [math]::Round((Get-Item installer-dist\SEO-Event-Tracker-Setup.exe).Length / 1MB, 1)
           Write-Host "Installer size: $size MB"
         shell: pwsh
