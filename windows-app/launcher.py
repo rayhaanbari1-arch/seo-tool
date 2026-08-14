@@ -1,11 +1,13 @@
 """
 Windows launcher for SEO Event Tracker.
-- Starts the Flask server and opens the browser automatically.
-- On first run: detects missing Playwright Chromium and offers to install it.
-- On every run: checks GitHub for updates and shows a popup if one is available.
+
+Opens as a self-contained native window by launching the bundled Chromium
+browser in --app mode (no address bar, own taskbar icon, no browser chrome).
+The same Chromium binary is used for both the UI window and screenshot capture.
 """
 import sys
 import os
+import glob
 import threading
 import webbrowser
 import time
@@ -20,6 +22,11 @@ if _IS_BUNDLED:
     _BUNDLE_DIR = sys._MEIPASS
     sys.path.insert(0, _BUNDLE_DIR)
 
+    # sys.executable = %LOCALAPPDATA%\SEO-Event-Tracker\app\SEO-Event-Tracker.exe
+    _APP_DIR      = os.path.dirname(sys.executable)
+    _INSTALL_ROOT = os.path.normpath(os.path.join(_APP_DIR, '..'))
+
+    # User data (DB, Chromium UI profile) — lives in %APPDATA%, survives reinstalls
     _DATA_DIR = os.path.join(
         os.environ.get('APPDATA', os.path.expanduser('~')),
         'SEO-Event-Tracker'
@@ -28,9 +35,17 @@ if _IS_BUNDLED:
 
     _db_file = os.path.join(_DATA_DIR, 'seo_tracker.db')
     os.environ.setdefault('DATABASE_URL', 'sqlite:///' + _db_file)
+
+    # Point Playwright to the browsers bundled by the installer
+    _browsers_dir = os.path.join(_INSTALL_ROOT, 'browsers')
+    if os.path.isdir(_browsers_dir):
+        os.environ['PLAYWRIGHT_BROWSERS_PATH'] = _browsers_dir
 else:
+    # Dev mode — project root is one level above windows-app/
     _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.insert(0, _PROJECT_ROOT)
+    _DATA_DIR     = os.path.join(_PROJECT_ROOT, 'instance')
+    _browsers_dir = None
 
 # ── Version (written at build time by GitHub Actions) ─────────────────────────
 try:
@@ -38,18 +53,53 @@ try:
 except ImportError:
     COMMIT_SHA = 'dev'
 
-REPO          = 'rayhaanbari1-arch/seo-tool'
-RELEASES_URL  = f'https://github.com/{REPO}/releases/latest'
-API_LATEST    = f'https://api.github.com/repos/{REPO}/commits/main'
+REPO         = 'rayhaanbari1-arch/seo-tool'
+RELEASES_URL = f'https://github.com/{REPO}/releases/latest'
 
-# ── Import Flask app ──────────────────────────────────────────────────────────
+# ── Flask app ─────────────────────────────────────────────────────────────────
 from app import app, db  # noqa: E402
 
 PORT = 5000
 URL  = f'http://127.0.0.1:{PORT}'
 
 
-# ── Windows helpers ───────────────────────────────────────────────────────────
+# ── Chromium window ───────────────────────────────────────────────────────────
+
+def _find_chromium() -> str | None:
+    """
+    Find chrome.exe inside the installer-bundled playwright browsers folder.
+    Playwright stores it as: browsers/chromium-REVISION/chrome-win/chrome.exe
+    """
+    browsers_path = os.environ.get('PLAYWRIGHT_BROWSERS_PATH')
+    if not browsers_path or not os.path.isdir(browsers_path):
+        return None
+    matches = glob.glob(
+        os.path.join(browsers_path, 'chromium-*', 'chrome-win', 'chrome.exe')
+    )
+    return matches[0] if matches else None
+
+
+def _launch_app_window(chromium_exe: str) -> subprocess.Popen:
+    """
+    Open the app in Chromium's --app mode: native-looking window,
+    no address bar, no bookmarks, own taskbar icon.
+    """
+    profile_dir = os.path.join(_DATA_DIR, 'ui-profile')
+    os.makedirs(profile_dir, exist_ok=True)
+
+    return subprocess.Popen([
+        chromium_exe,
+        f'--app={URL}',
+        '--window-size=1280,820',
+        '--no-first-run',
+        '--disable-default-apps',
+        '--no-default-browser-check',
+        '--disable-extensions',
+        f'--user-data-dir={profile_dir}',
+    ])
+
+
+# ── Update checker ────────────────────────────────────────────────────────────
 
 def _msgbox(text: str, title: str, flags: int) -> int:
     try:
@@ -59,100 +109,17 @@ def _msgbox(text: str, title: str, flags: int) -> int:
         return 0
 
 
-# ── Playwright install ────────────────────────────────────────────────────────
-
-def _chromium_ok() -> bool:
-    try:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:
-            b = p.chromium.launch(headless=True)
-            b.close()
-        return True
-    except Exception:
-        return False
-
-
-def _install_chromium() -> bool:
-    """
-    Run 'playwright install chromium' using the bundled Node driver.
-    Uses cmd.exe /c so .cmd files execute correctly on Windows.
-    Opens a visible console window showing download progress.
-    """
-    try:
-        from playwright._impl._driver import compute_driver_executable, get_driver_env
-        driver = str(compute_driver_executable())
-        env    = get_driver_env()
-
-        # .cmd files must be invoked via cmd.exe on Windows
-        cmd = ['cmd.exe', '/c', driver, 'install', 'chromium']
-
-        result = subprocess.run(
-            cmd,
-            env=env,
-            creationflags=subprocess.CREATE_NEW_CONSOLE,
-        )
-        return result.returncode == 0
-    except Exception as exc:
-        print(f'[launcher] Chromium install error: {exc}')
-        return False
-
-
-def _handle_missing_chromium():
-    MB_YESNO        = 0x04
-    MB_ICONQUESTION = 0x20
-    MB_ICONINFO     = 0x40
-    MB_ICONERROR    = 0x10
-    IDYES           = 6
-
-    choice = _msgbox(
-        (
-            "Playwright Chromium is required for screenshot capture "
-            "but is not installed on this machine.\n\n"
-            "Install it now?  (~130 MB download)\n\n"
-            "• Yes — download and install automatically\n"
-            "• No  — skip for now (screenshots won't work)"
-        ),
-        "SEO Event Tracker — First-time Setup",
-        MB_YESNO | MB_ICONQUESTION,
-    )
-
-    if choice != IDYES:
-        return
-
-    success = _install_chromium()
-
-    if success:
-        _msgbox(
-            "Chromium installed successfully!\nScreenshot capture is now ready.",
-            "SEO Event Tracker — Setup Complete",
-            MB_ICONINFO,
-        )
-    else:
-        _msgbox(
-            (
-                "Chromium installation failed.\n\n"
-                "Please open a terminal (cmd / PowerShell) and run:\n"
-                "    python -m playwright install chromium"
-            ),
-            "SEO Event Tracker — Installation Failed",
-            MB_ICONERROR,
-        )
-
-
-# ── Auto-update checker ───────────────────────────────────────────────────────
-
 def _check_for_update() -> bool:
-    """Return True if the remote main branch is ahead of this build."""
     if COMMIT_SHA == 'dev':
         return False
     try:
         req = urllib.request.Request(
-            API_LATEST,
+            f'https://api.github.com/repos/{REPO}/commits/main',
             headers={'User-Agent': 'SEO-Event-Tracker-Updater'}
         )
         with urllib.request.urlopen(req, timeout=6) as resp:
-            data    = json.loads(resp.read())
-            latest  = data.get('sha', '')
+            data   = json.loads(resp.read())
+            latest = data.get('sha', '')
             return bool(latest) and latest != COMMIT_SHA
     except Exception:
         return False
@@ -161,49 +128,49 @@ def _check_for_update() -> bool:
 def _handle_update():
     if not _check_for_update():
         return
-
-    MB_YESNO   = 0x04
-    MB_ICONINFO = 0x40
-    IDYES       = 6
-
     choice = _msgbox(
         (
             "A new version of SEO Event Tracker is available!\n\n"
-            "Click Yes to open the download page.\n"
-            "Click No to continue with the current version."
+            "Download the latest installer now?"
         ),
         "SEO Event Tracker — Update Available",
-        MB_YESNO | MB_ICONINFO,
+        0x24,  # MB_YESNO | MB_ICONQUESTION
     )
-
-    if choice == IDYES:
+    if choice == 6:  # IDYES
         webbrowser.open(RELEASES_URL)
 
 
-# ── Browser open ──────────────────────────────────────────────────────────────
+# ── Flask runner ──────────────────────────────────────────────────────────────
 
-def _open_browser():
-    time.sleep(1.5)
-    webbrowser.open(URL)
+def _run_flask():
+    app.run(host='127.0.0.1', port=PORT, debug=False, use_reloader=False)
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    # Both checks run in background threads — server starts immediately
-    if not _chromium_ok():
-        threading.Thread(target=_handle_missing_chromium, daemon=True).start()
-
-    threading.Thread(target=_handle_update, daemon=True).start()
-
     with app.app_context():
         db.create_all()
 
-    threading.Thread(target=_open_browser, daemon=True).start()
+    # Update check runs in background — never blocks startup
+    threading.Thread(target=_handle_update, daemon=True).start()
 
-    print(f'SEO Event Tracker running at {URL}')
-    print('Close this window to stop the app.')
-    app.run(host='127.0.0.1', port=PORT, debug=False, use_reloader=False)
+    chromium_exe = _find_chromium()
+
+    if chromium_exe:
+        # ── Installed mode ────────────────────────────────────────────────────
+        # Flask runs on a daemon thread; bundled Chromium provides the UI window.
+        # Process exits cleanly when the user closes the window.
+        threading.Thread(target=_run_flask, daemon=True).start()
+        time.sleep(1.0)  # Give Flask a moment to bind the port
+        proc = _launch_app_window(chromium_exe)
+        proc.wait()      # Block until the window is closed
+
+    else:
+        # ── Dev / fallback mode ───────────────────────────────────────────────
+        # Open in the system browser and run Flask on the main thread.
+        threading.Timer(1.5, lambda: webbrowser.open(URL)).start()
+        _run_flask()
 
 
 if __name__ == '__main__':
