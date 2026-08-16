@@ -112,14 +112,17 @@ jobs:
           TAG="${{ steps.meta.outputs.tag }}"
           VERSION="${{ steps.meta.outputs.version }}"
           SHA="${{ steps.meta.outputs.sha }}"
+          {
+            echo "**Version:** $VERSION"
+            echo "**Commit:** $SHA"
+            echo ""
+            echo "**Install:** Open the .dmg, drag SEO Event Tracker to Applications, then double-click to launch."
+            echo ""
+            echo "> **First launch:** macOS may show a security warning for unsigned apps. Right-click the app → Open → Open to bypass it (only needed once)."
+          } > /tmp/release-notes.md
           gh release create "$TAG" \
             "SEO-Event-Tracker.dmg" \
             --title "SEO Event Tracker $VERSION (macOS)" \
-            --notes "**Version:** $VERSION
-**Commit:** $SHA
-
-**Install:** Open the .dmg, drag SEO Event Tracker to Applications, then double-click to launch.
-
-> **First launch:** macOS may show a security warning for unsigned apps. Right-click the app → Open → Open to bypass it (only needed once)."
+            --notes-file /tmp/release-notes.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
