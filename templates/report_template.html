@@ -8,251 +8,361 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --orange: #F26522;
+      --orange:   #F26522;
       --charcoal: #2D2D2D;
+      --gray-50:  #F7F6F4;
       --gray-100: #F7F6F4;
-      --gray-200: #EBEBEB;
-      --gray-300: #D9D9D9;
-      --gray-500: #888;
-      --gray-700: #555;
-      --blue: #2980B9;
-      --green: #27AE60;
-      --white: #fff;
+      --gray-200: #E8E8E8;
+      --gray-500: #6B6B6B;
+      --gray-700: #444;
+      --white:    #fff;
+      --green:    #27AE60;
+      --amber:    #E8A33D;
+      --red:      #C0392B;
+      --blue:     #2980B9;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: 'DM Sans', sans-serif;
-      background: var(--gray-100);
+      background: var(--gray-50);
       color: var(--charcoal);
       font-size: 14px;
       line-height: 1.5;
     }
 
+    /* ── Header ── */
     .report-header {
       background: var(--charcoal);
       color: var(--white);
-      padding: 36px 40px 32px;
+      padding: 32px 40px 28px;
+      border-bottom: 2px solid var(--orange);
     }
     .report-header h1 {
       font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800; font-size: 32px;
-      letter-spacing: 0.03em; text-transform: uppercase; margin-bottom: 8px;
+      font-weight: 800; font-size: 30px;
+      letter-spacing: 0.03em; text-transform: uppercase; margin-bottom: 6px;
     }
     .report-header h1 span { color: var(--orange); }
-    .report-meta { font-size: 12px; color: var(--gray-300); margin-top: 4px; }
+    .report-meta { font-size: 11px; color: #aaa; margin-top: 2px; }
 
-    /* ── Summary ── */
-    .summary {
-      background: var(--white); border-bottom: 2px solid var(--gray-200);
-      padding: 28px 40px;
+    /* ── Level-1 tab bar ── */
+    .l1-tabbar {
+      position: sticky; top: 0; z-index: 200;
+      background: var(--charcoal);
+      display: flex; overflow-x: auto; scrollbar-width: none;
+      border-bottom: 2px solid var(--orange);
     }
-    .summary-title {
+    .l1-tabbar::-webkit-scrollbar { display: none; }
+    .l1-tabbar button {
+      background: none; border: none; cursor: pointer;
+      padding: 14px 20px;
+      color: #aaa;
       font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800; font-size: 18px; text-transform: uppercase;
-      letter-spacing: 0.04em; margin-bottom: 16px;
-    }
-    .summary-stats {
-      display: flex; gap: 32px; margin-bottom: 20px;
-    }
-    .summary-stat {
-      display: flex; flex-direction: column;
-    }
-    .summary-stat-value {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800; font-size: 28px; color: var(--orange);
-    }
-    .summary-stat-label {
-      font-size: 11px; color: var(--gray-500); text-transform: uppercase;
-      letter-spacing: 0.06em; font-weight: 600;
-    }
-    .top-performers-title {
-      font-size: 12px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 8px;
-    }
-    .top-performers-list {
-      display: flex; gap: 8px; flex-wrap: wrap;
-    }
-    .top-performer {
-      background: var(--gray-100); border: 1px solid var(--gray-200);
-      border-radius: 3px; padding: 10px 16px; font-size: 13px;
-      display: flex; flex-direction: column; gap: 2px; min-width: 160px;
-    }
-    .top-performer-name { font-weight: 600; }
-    .top-performer-stats { font-size: 11px; color: var(--gray-500); }
-    .top-performer-stats strong { color: var(--charcoal); }
-    .top-performer-cta { font-size: 11px; color: var(--gray-700); }
-
-    .insight-banner {
-      background: #fff8f4; border-left: 4px solid var(--orange);
-      padding: 14px 20px; margin: 24px 40px; border-radius: 2px;
-      font-size: 13px; color: var(--gray-700);
-    }
-    .insight-banner strong { color: var(--charcoal); }
-
-    .jump-nav {
-      position: sticky; top: 0; z-index: 100;
-      background: var(--charcoal); border-bottom: 2px solid var(--orange);
-      padding: 0 40px; display: flex; overflow-x: auto; scrollbar-width: none;
-    }
-    .jump-nav::-webkit-scrollbar { display: none; }
-    .jump-nav a {
-      display: block; padding: 14px 18px; color: var(--gray-300);
-      text-decoration: none; font-family: 'Barlow Condensed', sans-serif;
       font-weight: 700; font-size: 13px; letter-spacing: 0.06em;
       text-transform: uppercase; white-space: nowrap;
-      border-bottom: 3px solid transparent; transition: color 0.15s, border-color 0.15s;
+      border-bottom: 3px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+      flex-shrink: 0;
     }
-    .jump-nav a:hover { color: var(--white); border-bottom-color: var(--orange); }
+    .l1-tabbar button:hover { color: var(--white); }
+    .l1-tabbar button[aria-selected="true"] {
+      color: var(--orange); border-bottom-color: var(--orange);
+    }
 
-    .container { max-width: 1400px; margin: 0 auto; padding: 32px 40px 60px; }
+    /* ── Panels ── */
+    .l1-panel { display: none; }
+    .l1-panel.active { display: block; }
+    /* No-JS fallback: show all */
+    body:not(.js-enabled) .l1-panel { display: block; }
+    body:not(.js-enabled) .l2-panel { display: block; }
 
-    .project { margin-bottom: 56px; }
+    /* ── Overview panel ── */
+    .overview-panel { max-width: 1200px; margin: 0 auto; padding: 36px 40px 60px; }
+    .section-heading {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 18px; text-transform: uppercase;
+      letter-spacing: 0.05em; margin-bottom: 16px; color: var(--charcoal);
+    }
 
-    .project-name-header {
+    /* ── Portfolio stat tiles ── */
+    .stat-tiles {
+      display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 36px;
+    }
+    .stat-tile {
+      background: var(--white); border: 1px solid var(--gray-200);
+      border-radius: 2px; padding: 20px 24px; min-width: 160px;
+    }
+    .stat-tile-value {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 32px; color: var(--orange);
+    }
+    .stat-tile-label {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--gray-500); margin-top: 2px;
+    }
+
+    /* ── Overview table ── */
+    .overview-table-wrap { overflow-x: auto; margin-bottom: 36px; }
+    .overview-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 13px;
+    }
+    .overview-table th {
       background: var(--charcoal); color: var(--white);
-      padding: 20px 28px; display: flex; align-items: center;
-      justify-content: space-between; gap: 16px;
-      border-radius: 3px 3px 0 0;
-    }
-    .project-name-header h2 {
       font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800; font-size: 24px;
+      font-weight: 700; font-size: 12px; letter-spacing: 0.06em;
+      text-transform: uppercase; padding: 10px 14px; text-align: left;
+    }
+    .overview-table th.num { text-align: right; }
+    .overview-table td {
+      padding: 9px 14px; border-bottom: 1px solid var(--gray-200);
+      vertical-align: middle;
+    }
+    .overview-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .overview-table tr:nth-child(even) td { background: var(--gray-50); }
+    .overview-table a { color: var(--charcoal); font-weight: 600; text-decoration: none; }
+    .overview-table a:hover { color: var(--orange); }
+
+    /* ── Degraded banner ── */
+    .degraded-banner {
+      background: #fff8f0; border-left: 4px solid var(--orange);
+      padding: 14px 20px; margin: 0 0 24px; border-radius: 2px;
+      font-size: 13px; color: var(--gray-700); user-select: none;
+    }
+    .degraded-banner strong { color: var(--charcoal); }
+
+    /* ── Project panel layout ── */
+    .project-panel-wrap { max-width: 1200px; margin: 0 auto; padding: 0 40px 60px; }
+
+    .project-header {
+      background: var(--charcoal); color: var(--white);
+      padding: 20px 28px; margin-bottom: 0;
+      border-bottom: 2px solid var(--orange);
+    }
+    .project-header h2 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 26px;
       letter-spacing: 0.04em; text-transform: uppercase;
     }
-    .project-name-header h2 span { color: var(--orange); margin-right: 10px; }
-    .project-summary-bar {
-      background: #3a3a3a; color: var(--gray-300);
-      padding: 8px 28px; font-size: 12px;
-      display: flex; gap: 24px;
-    }
-    .project-summary-bar strong { color: var(--white); }
+    .project-header h2 span { color: var(--orange); margin-right: 10px; }
 
-    .section-header {
-      background: #4a4a4a; color: var(--white);
-      padding: 14px 28px; display: flex; align-items: center;
-      justify-content: space-between; gap: 16px;
-      margin-top: 2px;
+    /* ── Level-2 tab bar ── */
+    .l2-tabbar {
+      display: flex; background: #3a3a3a;
+      border-bottom: 1px solid #555;
+      overflow-x: auto; scrollbar-width: none;
     }
-    .section-header h3 {
+    .l2-tabbar::-webkit-scrollbar { display: none; }
+    .l2-tabbar button {
+      background: none; border: none; cursor: pointer;
+      padding: 11px 22px;
+      color: #ccc;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 600; font-size: 13px; white-space: nowrap;
+      border-bottom: 3px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+    }
+    .l2-tabbar button:hover { color: var(--white); }
+    .l2-tabbar button[aria-selected="true"] {
+      color: var(--white); border-bottom-color: var(--orange);
+    }
+    .l2-panel { display: none; padding: 28px 0; }
+    .l2-panel.active { display: block; }
+
+    /* ── Attention curve ── */
+    .attention-block {
+      background: var(--white); border: 1px solid var(--gray-200);
+      border-radius: 2px; padding: 20px 24px; margin-bottom: 20px;
+    }
+    .attention-block h3 {
       font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700; font-size: 17px;
-      letter-spacing: 0.04em; text-transform: uppercase;
+      font-weight: 700; font-size: 14px; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 12px;
+    }
+    .attention-inner { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+    .attention-curve-svg { flex-shrink: 0; }
+    .attention-stats { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+    .attention-stat { display: flex; gap: 6px; }
+    .attention-stat-label { color: var(--gray-500); min-width: 120px; }
+    .attention-stat-value { font-weight: 600; }
+    .cliff-sentence {
+      margin-top: 12px; font-size: 14px; font-weight: 600;
+      color: var(--charcoal); border-top: 1px solid var(--gray-200); padding-top: 12px;
     }
 
-    .view-page-btn {
-      display: inline-block; background: var(--orange); color: var(--white);
-      font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
-      text-transform: uppercase; padding: 8px 16px; border-radius: 2px;
-      text-decoration: none; white-space: nowrap; flex-shrink: 0;
+    /* ── Section blocks (B) ── */
+    .section-map { margin-bottom: 20px; }
+    .section-map h3 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 14px; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 12px;
+    }
+    .section-row {
+      background: var(--white); border: 1px solid var(--gray-200);
+      border-radius: 2px; padding: 14px 18px; margin-bottom: 6px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap;
+    }
+    .section-row-title { font-weight: 600; font-size: 13px; }
+    .section-row-meta { font-size: 12px; color: var(--gray-500); }
+
+    /* ── CTA grid (C and D) ── */
+    .cta-block { margin-bottom: 24px; }
+    .cta-block h3 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 14px; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 12px;
+    }
+    .cta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .cta-card {
+      background: var(--white); border: 1px solid var(--gray-200);
+      border-radius: 2px; padding: 18px 20px; position: relative;
+      display: flex; flex-direction: column; gap: 6px;
     }
 
-    .section-bar {
-      background: #3D3D3D; color: var(--gray-200);
-      padding: 10px 28px; font-size: 12px; font-weight: 600;
+    .cta-rank-badge {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 12px; color: var(--orange);
+      letter-spacing: 0.04em; margin-bottom: 2px;
+    }
+    .cta-thumb {
+      width: 100%; border: 1px solid var(--gray-200);
+      border-radius: 2px; overflow: hidden; background: var(--gray-50);
+      margin-bottom: 4px;
+    }
+    .cta-thumb img { width: 100%; height: auto; display: block; }
+    .cta-name { font-weight: 600; font-size: 14px; word-break: break-word; }
+    .cta-id  { font-size: 11px; color: var(--gray-500); font-family: monospace; word-break: break-all; }
+    .cta-adj-rate {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 22px; color: var(--orange);
+    }
+    .cta-stats { font-size: 12px; color: var(--gray-500); }
+    .cta-stats strong { color: var(--charcoal); }
+    .cta-meta { font-size: 11px; color: var(--gray-500); }
+
+    /* ── Verdict pills ── */
+    .verdict {
+      display: inline-block; font-size: 10px; font-weight: 700;
       letter-spacing: 0.06em; text-transform: uppercase;
-      display: flex; justify-content: space-between; align-items: center;
+      padding: 3px 9px; border-radius: 2px;
     }
-    .section-bar .found-badge {
-      background: var(--green); color: var(--white);
-      padding: 3px 10px; border-radius: 2px;
-      font-size: 10px; font-weight: 700;
-    }
-    .section-bar .notfound-badge {
-      background: var(--gray-500); color: var(--white);
-      padding: 3px 10px; border-radius: 2px;
-      font-size: 10px; font-weight: 700;
-    }
+    .verdict-works          { background: #eaf7ef; color: var(--green); }
+    .verdict-seen-ignored   { background: #fdf0ee; color: var(--red); }
+    .verdict-buried         { background: #fef7eb; color: var(--amber); }
+    .verdict-dead           { background: #fdf0ee; color: var(--red); }
+    .verdict-none           { background: var(--gray-100); color: var(--gray-500); }
+    .verdict-degraded       { background: #fff8f0; color: var(--orange); }
 
-    /* ── Section Stats Bar ── */
-    .section-stats-bar {
-      background: var(--white); padding: 12px 28px;
-      border-bottom: 2px solid var(--gray-200);
-      display: flex; gap: 24px; font-size: 13px; color: var(--gray-500);
+    /* ── Category pill ── */
+    .category-pill {
+      display: inline-block; font-size: 10px; font-weight: 600;
+      padding: 2px 8px; border-radius: 2px;
+      background: var(--gray-100); color: var(--gray-500);
     }
-    .section-stats-bar strong { color: var(--charcoal); }
+    .category-primary   { background: #eaf7ef; color: var(--green); }
+    .category-secondary { background: #ebf5fb; color: var(--blue); }
 
-    /* ── Page Screenshot ── */
+    /* ── Problem CTA groups (D) ── */
+    .problem-group { margin-bottom: 20px; }
+    .problem-group-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; margin-bottom: 10px; padding: 6px 12px;
+      border-radius: 2px;
+    }
+    .problem-seen  { background: #fdf0ee; color: var(--red); }
+    .problem-buried { background: #fef7eb; color: var(--amber); }
+    .problem-dead  { background: #fdf0ee; color: var(--red); }
+
+    /* ── Appendix ── */
+    .appendix details {
+      background: var(--white); border: 1px solid var(--gray-200);
+      border-radius: 2px; margin-bottom: 16px;
+    }
+    .appendix summary {
+      padding: 14px 18px; font-weight: 600; font-size: 13px;
+      cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px;
+    }
+    .appendix summary::-webkit-details-marker { display: none; }
+    .appendix-table-wrap { overflow-x: auto; padding: 0 18px 18px; }
+    .appendix-table {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+    }
+    .appendix-table th {
+      background: var(--gray-50); padding: 8px 10px;
+      text-align: left; font-weight: 700; font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--gray-500);
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .appendix-table th.num { text-align: right; }
+    .appendix-table td {
+      padding: 7px 10px; border-bottom: 1px solid var(--gray-200);
+      vertical-align: middle;
+    }
+    .appendix-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .appendix-table tr:last-child td { border-bottom: none; }
+
+    /* ── Page screenshot ── */
     .page-screenshot {
-      background: var(--white); padding: 16px;
-      border-bottom: 2px solid var(--gray-200);
+      background: var(--white); border: 1px solid var(--gray-200);
+      border-radius: 2px; padding: 16px; margin-bottom: 20px;
     }
     .page-screenshot img {
       width: 100%; height: auto; display: block;
       border: 1px solid var(--gray-200); border-radius: 2px;
     }
-    .page-screenshot-note {
-      font-size: 11px; color: var(--gray-500);
-      margin-top: 8px; font-style: italic;
+    .page-screenshot-note { font-size: 11px; color: var(--gray-500); margin-top: 8px; font-style: italic; }
+
+    /* ── Flag list ── */
+    .flags-list { list-style: none; padding: 0; }
+    .flags-list li {
+      background: #fff8f0; border-left: 3px solid var(--orange);
+      padding: 8px 14px; margin-bottom: 6px; border-radius: 2px;
+      font-size: 12px; color: var(--gray-700);
     }
 
-    /* ── CTA Grid ── */
-    .cta-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 2px; background: var(--gray-200);
-      border-radius: 0 0 3px 3px; overflow: hidden;
-    }
-
-    .cta-card {
-      background: var(--white); padding: 18px 20px 22px; position: relative;
-    }
-    .cta-card.found { border-left: 3px solid var(--green); }
-    .cta-card.notfound { border-left: 3px solid var(--gray-300); }
-
-    .cta-rank {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800; font-size: 13px; color: var(--orange);
-      margin-bottom: 6px; letter-spacing: 0.04em;
-    }
-
-    .cta-thumb {
-      width: 100%; border: 1px solid var(--gray-200);
-      border-radius: 2px; overflow: hidden; background: var(--gray-100);
-      margin-bottom: 12px;
-    }
-    .cta-thumb img { width: 100%; height: auto; display: block; }
-
-    .cta-name {
-      font-weight: 600; font-size: 14px; margin-bottom: 2px; word-break: break-word;
-    }
-    .cta-id {
-      font-size: 11px; color: var(--gray-500); margin-bottom: 8px;
-      font-family: monospace; word-break: break-all;
-    }
-    .cta-stats { font-size: 12.5px; color: var(--gray-500); margin-bottom: 8px; }
-    .cta-stats strong { color: var(--charcoal); }
-
-    .badge {
-      display: inline-block; font-size: 10px; font-weight: 700;
-      letter-spacing: 0.06em; text-transform: uppercase;
-      padding: 3px 8px; border-radius: 2px;
-    }
-    .badge-found { background: #F0FAF4; color: var(--green); }
-    .badge-notfound { background: var(--gray-100); color: var(--gray-500); }
-
+    /* ── Utility ── */
     .no-data {
-      background: var(--white); padding: 40px; text-align: center;
-      color: var(--gray-500); font-size: 13px; border-radius: 0 0 3px 3px;
+      background: var(--white); border: 1px solid var(--gray-200);
+      border-radius: 2px; padding: 40px; text-align: center;
+      color: var(--gray-500); font-size: 13px;
     }
+    .mono { font-family: monospace; font-size: 11px; color: var(--gray-500); }
+    .dash { color: var(--gray-500); }
 
+    /* ── Footer ── */
     .report-footer {
-      text-align: center; padding: 24px;
+      text-align: center; padding: 24px 40px;
       font-size: 12px; color: var(--gray-500);
       border-top: 1px solid var(--gray-200); margin-top: 40px;
     }
+    .footer-methodology {
+      max-width: 800px; margin: 12px auto 0; font-size: 12px;
+      color: var(--gray-500); line-height: 1.6;
+    }
 
-    @media (max-width: 900px) {
-      .container { padding: 20px 16px 40px; }
-      .report-header { padding: 24px 16px 20px; }
-      .summary { padding: 20px 16px; }
-      .summary-stats { flex-direction: column; gap: 16px; }
-      .jump-nav { padding: 0 16px; }
-      .insight-banner { margin: 16px; }
+    /* ── Print ── */
+    @media print {
+      .l1-tabbar, .l2-tabbar { display: none !important; }
+      .l1-panel, .l2-panel { display: block !important; }
+      .l1-panel + .l1-panel, .l2-panel + .l2-panel { page-break-before: always; }
+      .project-panel-wrap { padding: 20px; }
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 800px) {
+      .overview-panel, .project-panel-wrap { padding: 20px 16px 40px; }
+      .report-header { padding: 20px 16px; }
+      .stat-tiles { gap: 12px; }
       .cta-grid { grid-template-columns: 1fr; }
-      .project-name-header { flex-direction: column; align-items: flex-start; gap: 10px; }
-      .section-header { flex-direction: column; align-items: flex-start; gap: 8px; }
-      .top-performers-list { flex-direction: column; }
+      .attention-inner { flex-direction: column; }
     }
   </style>
 </head>
@@ -260,164 +370,583 @@
 
   <div class="report-header">
     <h1>{{ client_name }} — <span>CTA Performance</span></h1>
-    <div class="report-meta">Auto-generated report &nbsp;·&nbsp; Ranked by total clicks (highest first)</div>
-  </div>
-
-  {# ── Summary Section ── #}
-  {% if projects %}
-  <div class="summary">
-    <div class="summary-title">Overview</div>
-    <div class="summary-stats">
-      <div class="summary-stat">
-        <div class="summary-stat-value">{{ "{:,}".format(total_clicks) }}</div>
-        <div class="summary-stat-label">Total Clicks</div>
-      </div>
-      <div class="summary-stat">
-        <div class="summary-stat-value">{{ "{:,}".format(total_users) }}</div>
-        <div class="summary-stat-label">Total Users</div>
-      </div>
-      <div class="summary-stat">
-        <div class="summary-stat-value">{{ projects | length }}</div>
-        <div class="summary-stat-label">Projects Tracked</div>
-      </div>
+    <div class="report-meta">
+      Generated {{ generated_at[:10] if generated_at else '' }}
+      &nbsp;·&nbsp; Depth-adjusted ranking (v2)
+      &nbsp;·&nbsp; {{ projects | length }} project{{ 's' if projects | length != 1 }}
     </div>
-
-    {% if top_performers %}
-    <div class="top-performers-title">Top Performers</div>
-    <div class="top-performers-list">
-      {% for p in top_performers %}
-      <div class="top-performer">
-        <div class="top-performer-name">{{ p.name }}</div>
-        <div class="top-performer-stats"><strong>{{ "{:,}".format(p.project_clicks) }}</strong> clicks &middot; <strong>{{ "{:,}".format(p.project_users) }}</strong> users</div>
-        {% if p.top_cta %}
-        <div class="top-performer-cta">Top CTA: {{ p.top_cta }} ({{ "{:,}".format(p.top_cta_clicks) }})</div>
-        {% endif %}
-      </div>
-      {% endfor %}
-    </div>
-    {% endif %}
-  </div>
-  {% endif %}
-
-  <div class="insight-banner">
-    <strong>How to read this report:</strong>
-    Each CTA is ranked by total <strong>click events</strong>.
-    <em>Clicks</em> = total event fires &nbsp;·&nbsp; <em>Users</em> = unique visitors who clicked.
-    Elements with a <span style="color:#27AE60;font-weight:700;">green</span> border were found in the page DOM and are highlighted on the screenshot above.
   </div>
 
-  {% if projects %}
-  <nav class="jump-nav">
+  {# ── Level-1 tab bar ── #}
+  <div class="l1-tabbar" role="tablist" aria-label="Projects">
+    <button role="tab" aria-selected="true" data-l1-tab="overview"
+            aria-controls="panel-overview">Overview</button>
     {% for project in projects %}
-    <a href="#{{ project.slug }}">{{ project.name }}</a>
+    <button role="tab" aria-selected="false" data-l1-tab="{{ project.slug }}"
+            aria-controls="panel-{{ project.slug }}">{{ project.name }}</button>
     {% endfor %}
-  </nav>
-  {% endif %}
+  </div>
 
-  <div class="container">
-    {% for project in projects %}
-    <section class="project" id="{{ project.slug }}">
+  {# ════════════════════════════════════════════════
+     OVERVIEW PANEL
+     ════════════════════════════════════════════════ #}
+  <div id="panel-overview" class="l1-panel active" role="tabpanel">
+    <div class="overview-panel">
 
-      {# ── Project Name Header ── #}
-      <div class="project-name-header">
-        <h2><span>{{ project.name }}</span></h2>
-      </div>
-      <div class="project-summary-bar">
-        <span><strong>{{ "{:,}".format(project.project_clicks) }}</strong> total clicks</span>
-        <span><strong>{{ "{:,}".format(project.project_users) }}</strong> total users</span>
-        <span><strong>{{ project.sections | length }}</strong> page{{ 's' if project.sections | length != 1 }} tracked</span>
-      </div>
-
-      {# ── Sections (LP / Project Page) ── #}
-      {% for section in project.sections %}
-
-      <div class="section-header">
-        <h3>{% if section.page_type == 'lp' %}Landing Page{% else %}Project Page{% endif %} — {{ section.title }}</h3>
-        {% if section.page_url %}
-        <a href="{{ section.page_url }}" class="view-page-btn" target="_blank" rel="noopener">View Live Page</a>
-        {% endif %}
-      </div>
-
-      <div class="section-bar">
-        <span>{{ section.total_ctas }} CTAs tracked</span>
-        <span>
-          {% if section.found_count > 0 %}
-          <span class="found-badge">{{ section.found_count }} / {{ section.total_ctas }} elements found in DOM</span>
-          {% else %}
-          <span class="notfound-badge">Elements tracked via GTM (not in DOM attributes)</span>
-          {% endif %}
-        </span>
-      </div>
-
-      {# ── Section Stats ── #}
-      <div class="section-stats-bar">
-        <span><strong>{{ "{:,}".format(section.section_clicks) }}</strong> clicks on this page</span>
-        <span><strong>{{ "{:,}".format(section.section_users) }}</strong> users on this page</span>
-      </div>
-
-      {# ── Full-page screenshot ── #}
-      {% if section.screenshot %}
-      <div class="page-screenshot">
-        <img src="data:image/jpeg;base64,{{ section.screenshot }}"
-             alt="{{ project.name }} {{ section.title }} page screenshot" loading="lazy">
-        {% if section.found_count > 0 %}
-        <div class="page-screenshot-note">
-          {{ section.found_count }} tracked element{{ 's' if section.found_count != 1 }} highlighted on the screenshot above.
+      {# Stat tiles #}
+      <div class="section-heading">Portfolio Summary</div>
+      <div class="stat-tiles">
+        <div class="stat-tile">
+          <div class="stat-tile-value">{{ "{:,}".format(total_page_view_users) }}</div>
+          <div class="stat-tile-label">Total Page View Users</div>
         </div>
-        {% else %}
-        <div class="page-screenshot-note">
-          Tracking IDs are managed via Google Tag Manager — elements are not directly identifiable in the DOM.
+        <div class="stat-tile">
+          <div class="stat-tile-value">{{ projects | length }}</div>
+          <div class="stat-tile-label">Projects</div>
         </div>
-        {% endif %}
+        <div class="stat-tile">
+          <div class="stat-tile-value">{{ fully_analysed }}</div>
+          <div class="stat-tile-label">Fully Analysed Pages</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-tile-value">{{ degraded_count }}</div>
+          <div class="stat-tile-label">Degraded (no scroll data)</div>
+        </div>
       </div>
+
+      {# Comparison table #}
+      <div class="section-heading">Page Comparison</div>
+      <div class="overview-table-wrap">
+        <table class="overview-table">
+          <thead>
+            <tr>
+              <th>Page</th>
+              <th class="num">Visitors</th>
+              <th class="num">Reach at 40%</th>
+              <th class="num">Cliff loss</th>
+              <th class="num">Deep retention</th>
+              <th>Top CTA (adj. rate)</th>
+              <th>Mode</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in overview_rows %}
+            <tr>
+              <td>
+                <a href="#{{ row.slug }}/{{ row.page_type }}" data-nav="{{ row.slug }}/{{ row.page_type }}">
+                  {{ row.project }}
+                  <span style="font-size:11px;color:var(--gray-500);font-weight:400;">
+                    ({{ 'LP' if row.page_type == 'lp' else 'PP' }})
+                  </span>
+                </a>
+              </td>
+              <td class="num">{{ "{:,}".format(row.page_view_users) if row.page_view_users else '—' }}</td>
+              <td class="num">
+                {% if row.reach_40 is not none %}{{ "%.1f" | format(row.reach_40 * 100) }}%{% else %}<span class="dash">—</span>{% endif %}
+              </td>
+              <td class="num">
+                {% if row.cliff_loss is not none %}{{ "%.0f" | format(row.cliff_loss * 100) }}%{% else %}<span class="dash">—</span>{% endif %}
+              </td>
+              <td class="num">
+                {% if row.deep_retention is not none %}{{ "%.0f" | format(row.deep_retention * 100) }}%{% else %}<span class="dash">—</span>{% endif %}
+              </td>
+              <td>
+                {% if row.top_cta %}
+                  <span style="font-weight:600;">{{ row.top_cta }}</span>
+                  {% if row.top_cta_adj is not none %}
+                    <span class="mono">({{ "%.1f" | format(row.top_cta_adj * 100) }}%)</span>
+                  {% endif %}
+                {% else %}<span class="dash">—</span>{% endif %}
+              </td>
+              <td>
+                {% if row.mode == 'full' %}
+                  <span class="verdict verdict-works">Full</span>
+                {% else %}
+                  <span class="verdict verdict-degraded">Degraded</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {# Data quality flags #}
+      {% if portfolio_flags %}
+      <div class="section-heading">Data Quality Flags</div>
+      <ul class="flags-list">
+        {% for flag in portfolio_flags %}
+        <li>{{ flag }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="section-heading">Data Quality</div>
+      <div style="font-size:13px;color:var(--gray-500);margin-bottom:24px;">No issues detected.</div>
       {% endif %}
 
-      {# ── CTA Cards Grid ── #}
-      {% if section.cards %}
-      <div class="cta-grid">
-        {% for card in section.cards %}
-        <div class="cta-card {{ 'found' if card.found else 'notfound' }}">
-          <div class="cta-rank">#{{ card.rank }}</div>
+    </div>
+  </div>
 
-          {% if card.crop %}
-          <div class="cta-thumb">
-            <img src="data:image/jpeg;base64,{{ card.crop }}" alt="{{ card.display_name }}" loading="lazy">
-          </div>
-          {% endif %}
+  {# ════════════════════════════════════════════════
+     PROJECT PANELS
+     ════════════════════════════════════════════════ #}
+  {% for project in projects %}
+  <div id="panel-{{ project.slug }}" class="l1-panel" role="tabpanel">
 
-          <div class="cta-name">{{ card.display_name }}</div>
-          <div class="cta-id">{{ card.click_id }}</div>
+    <div class="project-panel-wrap">
+      <div class="project-header">
+        <h2><span>#{{ loop.index }}</span>{{ project.name }}</h2>
+      </div>
 
-          <div class="cta-stats">
-            <strong>{{ "{:,}".format(card.clicks) }}</strong> clicks
-            &nbsp;&middot;&nbsp;
-            <strong>{{ "{:,}".format(card.users) }}</strong> users
-          </div>
-
-          {% if card.found %}
-          <span class="badge badge-found">Found in DOM</span>
-          {% endif %}
-        </div>
+      {# Level-2 tab bar — only if more than one page panel #}
+      {% if not project.single_page %}
+      <div class="l2-tabbar" role="tablist" data-project="{{ project.slug }}">
+        {% for pp in project.page_panels %}
+        <button role="tab"
+                aria-selected="{{ 'true' if loop.first else 'false' }}"
+                data-l2-tab="{{ project.slug }}-{{ pp.page_type }}"
+                aria-controls="l2panel-{{ project.slug }}-{{ pp.page_type }}">
+          {{ loop.index }}&nbsp; {{ 'Landing Page' if pp.page_type == 'lp' else 'Project Page' }}
+          {% if pp.mode != 'full' %}<span style="font-size:9px;opacity:0.7;">&nbsp;[no scroll]</span>{% endif %}
+        </button>
         {% endfor %}
       </div>
-      {% else %}
-      <div class="no-data">No CTA data available for this page.</div>
       {% endif %}
 
+      {# Page panels #}
+      {% for pp in project.page_panels %}
+      <div id="l2panel-{{ project.slug }}-{{ pp.page_type }}"
+           class="l2-panel {{ 'active' if loop.first }}"
+           data-project="{{ project.slug }}">
+
+        {# Degraded banner — persistent #}
+        {% if pp.mode != 'full' %}
+        <div class="degraded-banner">
+          <strong>No scroll depth data for this page.</strong>
+          CTA ranking is by raw clicks and is biased toward elements higher on the page.
+          Add the scroll depth events to the GA4 export to enable the full attention model.
+        </div>
+        {% endif %}
+
+        {# Page meta strip #}
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+          <div style="font-size:13px;color:var(--gray-500);">
+            <strong style="color:var(--charcoal);">{{ pp.title }}</strong>
+            &nbsp;·&nbsp;
+            {% if pp.page_view_users %}{{ "{:,}".format(pp.page_view_users) }} page view users{% endif %}
+            {% if pp.total_clicks %}&nbsp;·&nbsp;{{ "{:,}".format(pp.total_clicks) }} tracked clicks{% endif %}
+          </div>
+          {% if pp.url %}
+          <a href="{{ pp.url }}" target="_blank" rel="noopener"
+             style="background:var(--orange);color:var(--white);font-size:11px;
+                    font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+                    padding:8px 16px;border-radius:2px;text-decoration:none;white-space:nowrap;">
+            View Live Page
+          </a>
+          {% endif %}
+        </div>
+
+        {# ── A: Attention curve ── #}
+        {% if pp.svg %}
+        <div class="attention-block">
+          <h3>A — Attention Curve</h3>
+          <div class="attention-inner">
+            <div class="attention-curve-svg">{{ pp.svg | safe }}</div>
+            <div class="attention-stats">
+              {% if pp.page_view_users %}
+              <div class="attention-stat">
+                <span class="attention-stat-label">Page view users</span>
+                <span class="attention-stat-value">{{ "{:,}".format(pp.page_view_users) }}</span>
+              </div>
+              {% endif %}
+              {% if pp.reach_40 is not none %}
+              <div class="attention-stat">
+                <span class="attention-stat-label">Reach at 40% depth</span>
+                <span class="attention-stat-value">{{ "%.1f" | format(pp.reach_40 * 100) }}%</span>
+              </div>
+              {% endif %}
+              {% if pp.cliff_depth is not none %}
+              <div class="attention-stat">
+                <span class="attention-stat-label">Cliff at</span>
+                <span class="attention-stat-value" style="color:var(--orange);">
+                  {{ "%.0f" | format(pp.cliff_depth * 100) }}% depth
+                </span>
+              </div>
+              {% endif %}
+              {% if pp.deep_retention is not none %}
+              <div class="attention-stat">
+                <span class="attention-stat-label">Deep retention</span>
+                <span class="attention-stat-value">{{ "%.0f" | format(pp.deep_retention * 100) }}%</span>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          {% if pp.cliff_sentence %}
+          <div class="cliff-sentence">{{ pp.cliff_sentence }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {# ── Page screenshot ── #}
+        {% if pp.screenshot %}
+        <div class="page-screenshot">
+          <img src="data:image/jpeg;base64,{{ pp.screenshot }}"
+               alt="{{ project.name }} {{ pp.title }} screenshot" loading="lazy">
+          <div class="page-screenshot-note">
+            {% if pp.found_count > 0 %}
+              {{ pp.found_count }} tracked element{{ 's' if pp.found_count != 1 }} highlighted.
+            {% else %}
+              Tracking IDs managed via Google Tag Manager — elements not directly identifiable in the DOM.
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+        {# ── C: Top CTAs by depth-adjusted rate ── #}
+        {% if pp.has_enough_for_top and pp.top_ctas %}
+        <div class="cta-block">
+          <h3>C — What Works (top {{ pp.top_ctas | length }} by depth-adjusted rate)</h3>
+          <div class="cta-grid">
+            {% for e in pp.top_ctas %}
+            <div class="cta-card">
+              <div class="cta-rank-badge">#{{ loop.index }}</div>
+              {% if e.crop %}
+              <div class="cta-thumb">
+                <img src="data:image/jpeg;base64,{{ e.crop }}" alt="{{ e.display_name }}" loading="lazy">
+              </div>
+              {% endif %}
+              <div class="cta-name">{{ e.display_name }}</div>
+              <div class="cta-id">{{ e.click_id }}</div>
+              {% if e.adj_rate is not none %}
+              <div class="cta-adj-rate">{{ "%.1f" | format(e.adj_rate * 100) }}%</div>
+              <div class="cta-meta" style="font-size:11px;color:var(--gray-500);">depth-adjusted click rate</div>
+              {% else %}
+              <div class="cta-adj-rate dash" style="font-size:22px;">—</div>
+              {% endif %}
+              <div class="cta-stats">
+                <strong>{{ "{:,}".format(e.clicks) }}</strong> clicks &middot;
+                <strong>{{ "{:,}".format(e.users) }}</strong> users
+                {% if e.depth is not none %}
+                &middot; {{ "%.0f" | format(e.depth * 100) }}% depth
+                {% elif e.depth is none and e.found %}
+                &middot; <span title="Fixed or sticky element">persistent</span>
+                {% endif %}
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+                {% set cat = e.category %}
+                {% if cat == 'primary_cta' %}
+                <span class="category-pill category-primary">Primary CTA</span>
+                {% elif cat == 'secondary_cta' %}
+                <span class="category-pill category-secondary">Secondary CTA</span>
+                {% else %}
+                <span class="category-pill">{{ cat | replace('_', ' ') | title }}</span>
+                {% endif %}
+                {% if e.verdict %}
+                {% set vclass = {
+                  'Works': 'works',
+                  'Seen and ignored': 'seen-ignored',
+                  'Buried': 'buried',
+                  'Dead': 'dead'
+                }.get(e.verdict, 'none') %}
+                <span class="verdict verdict-{{ vclass }}">{{ e.verdict }}</span>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {# ── D: Problem CTAs grouped by verdict ── #}
+        {% if pp.has_enough_for_problems %}
+        {% set seen_ignored = pp.problem_ctas['Seen and ignored'] %}
+        {% set buried = pp.problem_ctas['Buried'] %}
+        {% set dead = pp.problem_ctas['Dead'] %}
+        {% if seen_ignored or buried or dead %}
+        <div class="cta-block">
+          <h3>D — What Doesn't Work</h3>
+
+          {% if seen_ignored %}
+          <div class="problem-group">
+            <div class="problem-group-label problem-seen">
+              Seen and ignored — rewrite the copy or design ({{ seen_ignored | length }})
+            </div>
+            <div class="cta-grid">
+              {% for e in seen_ignored %}
+              <div class="cta-card">
+                <div class="verdict verdict-seen-ignored" style="margin-bottom:4px;">Seen and ignored</div>
+                <div class="cta-name">{{ e.display_name }}</div>
+                <div class="cta-id">{{ e.click_id }}</div>
+                <div class="cta-stats">
+                  <strong>{{ "{:,}".format(e.clicks) }}</strong> clicks &middot;
+                  {% if e.adj_rate is not none %}
+                  adj. rate <strong>{{ "%.1f" | format(e.adj_rate * 100) }}%</strong>
+                  {% else %}<span class="dash">—</span>{% endif %}
+                  {% if e.reach is not none %}
+                  &middot; reach <strong>{{ "%.1f" | format(e.reach * 100) }}%</strong>
+                  {% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          {% if buried %}
+          <div class="problem-group">
+            <div class="problem-group-label problem-buried">
+              Buried — move these up the page ({{ buried | length }})
+            </div>
+            <div class="cta-grid">
+              {% for e in buried %}
+              <div class="cta-card">
+                <div class="verdict verdict-buried" style="margin-bottom:4px;">Buried</div>
+                <div class="cta-name">{{ e.display_name }}</div>
+                <div class="cta-id">{{ e.click_id }}</div>
+                <div class="cta-stats">
+                  <strong>{{ "{:,}".format(e.clicks) }}</strong> clicks &middot;
+                  {% if e.adj_rate is not none %}
+                  adj. rate <strong>{{ "%.1f" | format(e.adj_rate * 100) }}%</strong>
+                  {% else %}<span class="dash">—</span>{% endif %}
+                  {% if e.depth is not none %}
+                  &middot; {{ "%.0f" | format(e.depth * 100) }}% depth
+                  {% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          {% if dead %}
+          <div class="problem-group">
+            <div class="problem-group-label problem-dead">
+              Dead — consider removing or rethinking ({{ dead | length }})
+            </div>
+            <div class="cta-grid">
+              {% for e in dead %}
+              <div class="cta-card">
+                <div class="verdict verdict-dead" style="margin-bottom:4px;">Dead</div>
+                <div class="cta-name">{{ e.display_name }}</div>
+                <div class="cta-id">{{ e.click_id }}</div>
+                <div class="cta-stats">
+                  <strong>{{ "{:,}".format(e.clicks) }}</strong> clicks &middot;
+                  {% if e.adj_rate is not none %}
+                  adj. rate <strong>{{ "%.1f" | format(e.adj_rate * 100) }}%</strong>
+                  {% else %}<span class="dash">—</span>{% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% endif %}
+
+        {# ── E: Appendix ── #}
+        <div class="appendix">
+          <details>
+            <summary>
+              E — Full Appendix ({{ pp.appendix_items | length }} tracked elements)
+            </summary>
+            <div class="appendix-table-wrap">
+              <table class="appendix-table">
+                <thead>
+                  <tr>
+                    <th>Click ID</th>
+                    <th>Category</th>
+                    <th class="num">Clicks</th>
+                    <th class="num">Users</th>
+                    <th class="num">Depth</th>
+                    <th class="num">Adj. rate</th>
+                    <th class="num">Bucket users</th>
+                    <th>Verdict</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for e in pp.appendix_items %}
+                  <tr>
+                    <td class="mono">{{ e.click_id }}</td>
+                    <td>
+                      {% set cat = e.category %}
+                      {% if cat == 'primary_cta' %}
+                      <span class="category-pill category-primary">Primary CTA</span>
+                      {% elif cat == 'secondary_cta' %}
+                      <span class="category-pill category-secondary">Secondary CTA</span>
+                      {% else %}
+                      <span class="category-pill">{{ cat | replace('_', ' ') | title }}</span>
+                      {% endif %}
+                    </td>
+                    <td class="num">{{ "{:,}".format(e.clicks) }}</td>
+                    <td class="num">{{ "{:,}".format(e.users) }}</td>
+                    <td class="num">
+                      {% if e.depth is not none %}{{ "%.0f" | format(e.depth * 100) }}%
+                      {% elif e.found %}sticky
+                      {% else %}<span class="dash">—</span>{% endif %}
+                    </td>
+                    <td class="num">
+                      {% if e.adj_rate is not none %}{{ "%.2f" | format(e.adj_rate * 100) }}%
+                      {% else %}<span class="dash">—</span>{% endif %}
+                    </td>
+                    <td class="num">
+                      {% if e.bucket_users is not none %}{{ "{:,}".format(e.bucket_users) }}
+                      {% else %}<span class="dash">—</span>{% endif %}
+                    </td>
+                    <td>
+                      {% if e.verdict %}
+                      {% set vclass = {
+                        'Works': 'works',
+                        'Seen and ignored': 'seen-ignored',
+                        'Buried': 'buried',
+                        'Dead': 'dead'
+                      }.get(e.verdict, 'none') %}
+                      <span class="verdict verdict-{{ vclass }}">{{ e.verdict }}</span>
+                      {% else %}<span class="dash">—</span>{% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+
+      </div>{# /l2-panel #}
       {% endfor %}
-    </section>
-    {% endfor %}
 
-    {% if not projects %}
-    <div class="no-data" style="margin-top:40px;">
-      No projects found. Check that your Excel sheet names match the project names in your client links.
-    </div>
-    {% endif %}
+    </div>{# /project-panel-wrap #}
+  </div>{# /l1-panel #}
+  {% endfor %}
+
+  {# ── No projects fallback ── #}
+  {% if not projects %}
+  <div class="no-data" style="margin:40px;">
+    No projects found. Check that your Excel sheet names match the project names in your client links.
   </div>
+  {% endif %}
 
+  {# ── Methodology footer ── #}
   <div class="report-footer">
-    Generated by SEO Event Tracker &nbsp;·&nbsp; {{ client_name }}
+    <div>Generated by SEO Event Tracker &nbsp;·&nbsp; {{ client_name }}
+    {% if generated_at %}&nbsp;·&nbsp; {{ generated_at[:10] }}{% endif %}</div>
+    <div class="footer-methodology">
+      <strong>Methodology:</strong>
+      Depth is measured with a viewport correction — an element 900px down a 9,000px page reads as 0% depth.
+      Bucket users are linearly interpolated between GA4's scroll-depth buckets.
+      Rates on denominators under 30 users are suppressed and shown as —.
+      The Total row is page-wide events and is excluded from all CTA maths.
+      Verdicts are computed from per-page medians of reach and depth-adjusted rate.
+    </div>
   </div>
+
+  <script>
+  (function () {
+    // Mark JS as enabled so CSS can show all panels in no-JS fallback
+    document.body.classList.add('js-enabled');
+
+    // ── Level-1 tabs ──────────────────────────────────────────────────
+    const l1Bar = document.querySelector('.l1-tabbar');
+    const l1Buttons = Array.from(l1Bar.querySelectorAll('[data-l1-tab]'));
+    const l1Panels  = {};
+    l1Buttons.forEach(btn => {
+      l1Panels[btn.dataset.l1Tab] = document.getElementById('panel-' + btn.dataset.l1Tab);
+    });
+
+    function activateL1(tabId, pushState) {
+      l1Buttons.forEach(b => {
+        const active = b.dataset.l1Tab === tabId;
+        b.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      Object.entries(l1Panels).forEach(([key, panel]) => {
+        if (panel) panel.classList.toggle('active', key === tabId);
+      });
+      if (pushState) {
+        const hash = tabId === 'overview' ? '' : '#' + tabId;
+        history.replaceState(null, '', location.pathname + location.search + hash);
+      }
+    }
+
+    l1Buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        activateL1(btn.dataset.l1Tab, true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      // Keyboard: arrow keys
+      btn.addEventListener('keydown', e => {
+        const idx = l1Buttons.indexOf(e.currentTarget);
+        if (e.key === 'ArrowRight') { l1Buttons[(idx + 1) % l1Buttons.length].focus(); }
+        if (e.key === 'ArrowLeft')  { l1Buttons[(idx - 1 + l1Buttons.length) % l1Buttons.length].focus(); }
+      });
+    });
+
+    // ── Level-2 tabs ──────────────────────────────────────────────────
+    // Each project panel has its own independent L2 state.
+    const l2State = {}; // projectSlug -> activePageType
+
+    document.querySelectorAll('[data-l2-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tabId    = btn.dataset.l2Tab;
+        const project  = btn.closest('[data-project]').dataset.project;
+        const panels   = document.querySelectorAll(`.l2-panel[data-project="${project}"]`);
+        const buttons  = btn.closest('.l2-tabbar').querySelectorAll('[data-l2-tab]');
+
+        buttons.forEach(b => b.setAttribute('aria-selected', 'false'));
+        btn.setAttribute('aria-selected', 'true');
+        panels.forEach(p => {
+          p.classList.toggle('active', p.id === 'l2panel-' + tabId);
+        });
+
+        l2State[project] = tabId;
+        const slug = tabId.replace(project + '-', '');
+        history.replaceState(null, '', location.pathname + '#' + project + '/' + slug);
+      });
+    });
+
+    // ── Overview table navigation links ──────────────────────────────
+    document.querySelectorAll('[data-nav]').forEach(a => {
+      a.addEventListener('click', e => {
+        e.preventDefault();
+        const [slug, pageType] = a.dataset.nav.split('/');
+        activateL1(slug, false);
+        // activate the correct L2 panel
+        const l2TabId = `${slug}-${pageType}`;
+        const btn = document.querySelector(`[data-l2-tab="${l2TabId}"]`);
+        if (btn) btn.click();
+        history.replaceState(null, '', '#' + slug + '/' + pageType);
+        window.scrollTo({ top: 0 });
+      });
+    });
+
+    // ── Hash-based restore on load ────────────────────────────────────
+    function restoreFromHash() {
+      const hash = location.hash.replace('#', '');
+      if (!hash) return;
+      if (hash.includes('/')) {
+        const [slug, pageType] = hash.split('/');
+        activateL1(slug, false);
+        const l2Btn = document.querySelector(`[data-l2-tab="${slug}-${pageType}"]`);
+        if (l2Btn) {
+          const project = slug;
+          const tabId   = `${slug}-${pageType}`;
+          const panels  = document.querySelectorAll(`.l2-panel[data-project="${project}"]`);
+          const buttons = l2Btn.closest('.l2-tabbar') && l2Btn.closest('.l2-tabbar').querySelectorAll('[data-l2-tab]');
+          if (buttons) buttons.forEach(b => b.setAttribute('aria-selected', 'false'));
+          l2Btn.setAttribute('aria-selected', 'true');
+          panels.forEach(p => {
+            p.classList.toggle('active', p.id === 'l2panel-' + tabId);
+          });
+        }
+      } else {
+        activateL1(hash, false);
+      }
+    }
+    restoreFromHash();
+    window.addEventListener('hashchange', restoreFromHash);
+
+  })();
+  </script>
 
 </body>
 </html>

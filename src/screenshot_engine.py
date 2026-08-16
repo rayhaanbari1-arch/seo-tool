@@ -36,56 +36,6 @@ PALETTE = [
 OVERVIEW_MAX_HEIGHT = 3000
 
 
-# JS function injected into the page to find elements by click_id
-_FIND_ELEMENT_JS = '''
-(clickId) => {
-    const cid = clickId.toLowerCase();
-    // Also try with hyphens ↔ underscores swapped
-    const cidAlt = cid.includes('-') ? cid.replace(/-/g, '_')
-                 : cid.includes('_') ? cid.replace(/_/g, '-')
-                 : null;
-
-    const matches = [];
-
-    for (const el of document.querySelectorAll('*')) {
-        const rect = el.getBoundingClientRect();
-        if (rect.width < 5 || rect.height < 5) continue;
-
-        let matched = false;
-        let matchType = '';
-
-        // 1. Check all attributes (id, class, data-*, onclick, href, aria-*, etc.)
-        for (const attr of el.attributes) {
-            const val = attr.value.toLowerCase();
-            if (val.includes(cid) || (cidAlt && val.includes(cidAlt))) {
-                matched = true;
-                matchType = attr.name;
-                break;
-            }
-        }
-
-        if (matched) {
-            matches.push({
-                x: rect.x + window.scrollX,
-                y: rect.y + window.scrollY,
-                width: rect.width,
-                height: rect.height,
-                tag: el.tagName.toLowerCase(),
-                matchType: matchType,
-                area: rect.width * rect.height,
-            });
-        }
-    }
-
-    // Prefer the most specific (smallest) visible match
-    // But skip tiny elements (< 20px area) — likely hidden tracking pixels
-    const valid = matches.filter(m => m.area >= 100);
-    valid.sort((a, b) => a.area - b.area);
-
-    return valid.length > 0 ? valid[0] : null;
-}
-'''
-
 
 def _to_b64(img: Image.Image, quality: int = 80) -> str:
     buf = io.BytesIO()
@@ -224,6 +174,73 @@ def _crop_element(full_png: bytes, bbox: dict, color_idx: int = 0) -> str:
     return _to_b64(cropped.convert('RGB'))
 
 
+VIEWPORT_HEIGHT = 900
+VIEWPORT_WIDTH = 1440
+
+# JS: get element bbox + position style in one call
+_FIND_ELEMENT_WITH_DEPTH_JS = '''
+(clickId) => {
+    const cid = clickId.toLowerCase();
+    const cidAlt = cid.includes('-') ? cid.replace(/-/g, '_')
+                 : cid.includes('_') ? cid.replace(/_/g, '-')
+                 : null;
+
+    const matches = [];
+
+    for (const el of document.querySelectorAll('*')) {
+        const rect = el.getBoundingClientRect();
+        if (rect.width < 5 || rect.height < 5) continue;
+
+        let matched = false;
+        let matchType = '';
+
+        for (const attr of el.attributes) {
+            const val = attr.value.toLowerCase();
+            if (val.includes(cid) || (cidAlt && val.includes(cidAlt))) {
+                matched = true;
+                matchType = attr.name;
+                break;
+            }
+        }
+
+        if (matched) {
+            const pos = window.getComputedStyle(el).position;
+            matches.push({
+                x: rect.x + window.scrollX,
+                y: rect.y + window.scrollY,
+                width: rect.width,
+                height: rect.height,
+                tag: el.tagName.toLowerCase(),
+                matchType: matchType,
+                area: rect.width * rect.height,
+                position: pos,
+            });
+        }
+    }
+
+    const valid = matches.filter(m => m.area >= 100);
+    valid.sort((a, b) => a.area - b.area);
+    return valid.length > 0 ? valid[0] : null;
+}
+'''
+
+
+def _compute_depth(element_top: float, page_height: int,
+                   viewport_height: int = VIEWPORT_HEIGHT) -> float | None:
+    """
+    Compute normalised element depth using the viewport-correction formula from §2.3.
+
+    depth = max(0, element_top - viewport_height) / (page_height - viewport_height)
+
+    Returns None when page_height <= viewport_height (degenerate page).
+    """
+    denom = page_height - viewport_height
+    if denom <= 0:
+        return 0.0
+    seen_at_scroll = max(0.0, element_top - viewport_height)
+    return min(1.0, seen_at_scroll / denom)
+
+
 async def _capture_page(browser, url: str, click_ids: list[str]) -> dict:
     """
     Capture a page and deep-inspect the DOM to find tracked elements.
@@ -231,12 +248,15 @@ async def _capture_page(browser, url: str, click_ids: list[str]) -> dict:
     Returns {
         'screenshot': base64 (annotated full-page),
         'element_crops': {click_id: base64} (per-element cropped screenshots),
-        'found_elements': [{'click_id', 'rank', 'match_type', 'tag'}],
+        'found_elements': [{'click_id', 'rank', 'match_type', 'tag', 'bbox'}],
         'found_count': int,
+        'page_height': int,
+        'viewport_height': int,
+        'depths': {click_id: float | None},   # None = fixed/sticky
     }
     """
     context = await browser.new_context(
-        viewport={'width': 1440, 'height': 900},
+        viewport={'width': VIEWPORT_WIDTH, 'height': VIEWPORT_HEIGHT},
         user_agent=(
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
             'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -248,6 +268,8 @@ async def _capture_page(browser, url: str, click_ids: list[str]) -> dict:
     found_elements = []
     element_crops = {}
     screenshot_b64 = ''
+    page_height = 0
+    depths: dict[str, float | None] = {}
 
     try:
         await page.goto(url, wait_until='networkidle', timeout=45000)
@@ -268,21 +290,22 @@ async def _capture_page(browser, url: str, click_ids: list[str]) -> dict:
             except Exception:
                 pass
 
-        # Scroll top-to-bottom to trigger lazy loading, maps, and scroll animations
-        await page.evaluate('''async () => {
+        # Scroll top-to-bottom to trigger lazy loading, then record true page height
+        page_height = await page.evaluate('''async () => {
             const delay = ms => new Promise(r => setTimeout(r, ms));
-            const height = document.body.scrollHeight;
             const step = window.innerHeight * 0.7;
-            for (let y = 0; y < height; y += step) {
+            let h = document.body.scrollHeight;
+            for (let y = 0; y < h; y += step) {
                 window.scrollTo(0, y);
                 await delay(300);
+                h = document.body.scrollHeight;  // re-measure after lazy loads
             }
-            // Hit the very bottom
-            window.scrollTo(0, height);
+            window.scrollTo(0, h);
             await delay(500);
-            // Scroll back to top
+            const finalHeight = document.body.scrollHeight;
             window.scrollTo(0, 0);
             await delay(300);
+            return finalHeight;
         }''')
 
         # Wait for maps/lazy content to finish rendering after scroll
@@ -294,7 +317,7 @@ async def _capture_page(browser, url: str, click_ids: list[str]) -> dict:
         # Deep DOM inspection for each click_id
         for rank, click_id in enumerate(click_ids, start=1):
             try:
-                match = await page.evaluate(_FIND_ELEMENT_JS, click_id)
+                match = await page.evaluate(_FIND_ELEMENT_WITH_DEPTH_JS, click_id)
             except Exception as e:
                 print(f'[screenshot_engine]   DOM inspect error for "{click_id}": {e}')
                 match = None
@@ -304,6 +327,14 @@ async def _capture_page(browser, url: str, click_ids: list[str]) -> dict:
                     'x': match['x'], 'y': match['y'],
                     'width': match['width'], 'height': match['height'],
                 }
+
+                # Depth computation
+                position = match.get('position', '')
+                if position in ('fixed', 'sticky'):
+                    depths[click_id] = None   # persistent element
+                else:
+                    depths[click_id] = _compute_depth(match['y'], page_height, VIEWPORT_HEIGHT)
+
                 found_elements.append({
                     'click_id': click_id,
                     'rank': rank,
@@ -315,8 +346,8 @@ async def _capture_page(browser, url: str, click_ids: list[str]) -> dict:
                 try:
                     element_crops[click_id] = _crop_element(full_png, bbox, color_idx=len(found_elements) - 1)
                 except Exception as crop_err:
-                    print(f'[screenshot_engine]   ⚠ Crop failed for "{click_id}": {crop_err}')
-                print(f'[screenshot_engine]   ✓ #{rank} "{click_id}" → <{match["tag"]}> matched via [{match["matchType"]}]')
+                    print(f'[screenshot_engine]   Crop failed for "{click_id}": {crop_err}')
+                print(f'[screenshot_engine]   #{rank} "{click_id}" -> <{match["tag"]}> matched via [{match["matchType"]}] depth={depths[click_id]}')
 
         # Annotate the full-page screenshot
         screenshot_b64 = _annotate_screenshot(full_png, found_elements)
@@ -332,16 +363,23 @@ async def _capture_page(browser, url: str, click_ids: list[str]) -> dict:
         'element_crops': element_crops,
         'found_elements': [
             {'click_id': e['click_id'], 'rank': e['rank'],
-             'match_type': e.get('match_type', ''), 'tag': e.get('tag', '')}
+             'match_type': e.get('match_type', ''), 'tag': e.get('tag', ''),
+             'bbox': e.get('bbox', {})}
             for e in found_elements
         ],
         'found_count': len(found_elements),
+        'page_height': page_height,
+        'viewport_height': VIEWPORT_HEIGHT,
+        'depths': depths,
     }
 
 
 async def capture_all_pages(links: list[dict], project_data: dict) -> dict:
     """
     Capture screenshots for all configured page links.
+
+    project_data uses the v2 structure:
+        {sheet_name: {'pages': {'lp': {...}, 'project': {...}}, 'flags': [...]}}
 
     Returns:
         {
@@ -351,6 +389,9 @@ async def capture_all_pages(links: list[dict], project_data: dict) -> dict:
                     'element_crops': {click_id: b64},
                     'found_count': int,
                     'found_elements': [...],
+                    'page_height': int,
+                    'viewport_height': int,
+                    'depths': {click_id: float | None},
                 },
                 'project': { ... },
             }
@@ -380,10 +421,13 @@ async def capture_all_pages(links: list[dict], project_data: dict) -> dict:
                 print(f'[screenshot_engine] Already captured {matched_sheet}/{page_type} — skipping')
                 continue
 
+            # v2 data structure: project_data[sheet]['pages'][page_type]['items']
             sheet_data = project_data[matched_sheet]
+            page_info = sheet_data.get('pages', {}).get(page_type, {})
             click_ids = [
-                item['click_id'] for item in sheet_data.get(page_type, [])
-                if item['clicks'] > 0
+                item['click_id']
+                for item in page_info.get('items', [])
+                if item.get('clicks', 0) > 0
             ][:15]
 
             if not click_ids:
@@ -392,7 +436,10 @@ async def capture_all_pages(links: list[dict], project_data: dict) -> dict:
 
             print(f'[screenshot_engine] Capturing {url} ({len(click_ids)} CTAs)...')
             page_result = await _capture_page(browser, url, click_ids)
-            print(f'[screenshot_engine]   → {page_result["found_count"]}/{len(click_ids)} elements found via DOM inspection')
+            print(
+                f'[screenshot_engine]   -> {page_result["found_count"]}/{len(click_ids)} '
+                f'elements found  page_height={page_result["page_height"]}px'
+            )
 
             if matched_sheet not in results:
                 results[matched_sheet] = {}
