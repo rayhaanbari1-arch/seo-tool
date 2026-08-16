@@ -131,32 +131,88 @@ def _dialog(message: str, title: str, buttons: list[str]) -> str:
 
 # ── Update checker ────────────────────────────────────────────────────────────
 
-def _check_for_update() -> bool:
+def _check_for_update() -> tuple[bool, str]:
+    """Returns (update_available, dmg_download_url)."""
     if COMMIT_SHA == 'dev':
-        return False
+        return False, ''
     try:
         req = urllib.request.Request(
-            f'https://api.github.com/repos/{REPO}/commits/main',
+            f'https://api.github.com/repos/{REPO}/releases/latest',
             headers={'User-Agent': 'SEO-Event-Tracker-Updater'}
         )
         with urllib.request.urlopen(req, timeout=6) as resp:
-            data   = json.loads(resp.read())
-            latest = data.get('sha', '')
-            return bool(latest) and latest != COMMIT_SHA
+            release = json.loads(resp.read())
+
+        # Tag format: v2026-08-16-abc1234-mac — if our 7-char SHA is in it, we're current
+        if COMMIT_SHA[:7] in release.get('tag_name', ''):
+            return False, ''
+
+        for asset in release.get('assets', []):
+            if asset['name'].endswith('.dmg'):
+                return True, asset['browser_download_url']
+
+        return True, ''  # Update available but no DMG asset found yet
     except Exception:
-        return False
+        return False, ''
+
+
+def _download_dmg(url: str) -> str | None:
+    """Download DMG to ~/Downloads. Returns local path or None on failure."""
+    dest = os.path.join(os.path.expanduser('~'), 'Downloads', 'SEO-Event-Tracker-update.dmg')
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'SEO-Event-Tracker-Updater'})
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            with open(dest, 'wb') as f:
+                while True:
+                    chunk = resp.read(65536)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+        return dest
+    except Exception:
+        return None
 
 
 def _handle_update():
-    if not _check_for_update():
+    update_available, dmg_url = _check_for_update()
+    if not update_available:
         return
+
     clicked = _dialog(
-        'A new version of SEO Event Tracker is available!\\n\\nDownload the latest version now?',
+        'A new version of SEO Event Tracker is available!\\n\\nDownload and install now?',
         'Update Available',
-        ['Later', 'Download'],
+        ['Later', 'Download Now'],
     )
-    if clicked == 'Download':
+    if clicked != 'Download Now':
+        return
+
+    if not dmg_url:
+        # No DMG asset yet (build still running) — fall back to releases page
         webbrowser.open(RELEASES_URL)
+        return
+
+    subprocess.run([
+        'osascript', '-e',
+        'display notification "Downloading update, please wait…" with title "SEO Event Tracker"'
+    ])
+
+    dmg_path = _download_dmg(dmg_url)
+
+    if not dmg_path:
+        _dialog(
+            'Download failed. Opening releases page instead.',
+            'Update Failed',
+            ['OK'],
+        )
+        webbrowser.open(RELEASES_URL)
+        return
+
+    subprocess.run(['open', dmg_path])
+    _dialog(
+        'Update downloaded!\\n\\nDrag SEO Event Tracker to Applications to complete the update, then relaunch the app.',
+        'Ready to Install',
+        ['OK'],
+    )
 
 
 # ── Flask runner ──────────────────────────────────────────────────────────────
