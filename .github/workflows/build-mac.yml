@@ -123,9 +123,21 @@ jobs:
             echo "**Version:** $VERSION"
             echo "**Commit:** $SHA"
             echo ""
-            echo "**Install:** Open the .dmg, drag SEO Event Tracker to Applications, then double-click to launch."
+            echo "## Install"
+            echo "1. Open the \`.dmg\` and drag **SEO Event Tracker** to Applications"
+            echo "2. Double-click to launch"
             echo ""
-            echo "> **First launch:** macOS may show a security warning for unsigned apps. Right-click the app → Open → Open to bypass it (only needed once)."
+            echo "## First launch — macOS security warning"
+            echo "Because this app is not notarized, macOS will block it on first open."
+            echo ""
+            echo "**macOS 15 Sequoia:**"
+            echo "1. Click Done on the warning"
+            echo "2. Open **System Settings → Privacy & Security**"
+            echo "3. Scroll down and click **Open Anyway** next to SEO Event Tracker"
+            echo "4. Enter your password and relaunch"
+            echo ""
+            echo "**macOS 13 / 14:**"
+            echo "Right-click the app → **Open** → **Open** to bypass (only needed once)."
           } > /tmp/release-notes.md
           gh release create "$TAG" \
             "SEO-Event-Tracker.dmg" \
