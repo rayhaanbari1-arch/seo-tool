@@ -78,7 +78,7 @@ jobs:
       # ── Ad-hoc sign to prevent "damaged" Gatekeeper error ───────────────
       - name: Ad-hoc code sign .app
         run: |
-          codesign --deep --force --sign - --options runtime \
+          codesign --deep --force --sign - \
             "dist/SEO-Event-Tracker.app"
           codesign --verify --deep --strict "dist/SEO-Event-Tracker.app"
 
