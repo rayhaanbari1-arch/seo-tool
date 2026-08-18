@@ -15,11 +15,39 @@ Key concepts from REPORT_FORMAT.md:
 
 import re
 import os
+import logging
 import statistics
 from datetime import datetime
 from jinja2 import Environment, FileSystemLoader
 
 from src.classifier import classify, classify_items
+
+log = logging.getLogger('report_generator')
+
+# ── Section keyword map (§7.1 defaults) ───────────────────────────────────────
+_SECTION_MAP = [
+    (['banner', 'hero', 'slider', 'bannerform', 'banner_form'], 'Hero'),
+    (['about', 'overview', 'project_content', 'dslc'], 'Overview'),
+    (['highlights', '5gardens', 'highlight'], 'Highlights'),
+    (['amenities', 'club', 'amenity'], 'Amenities'),
+    (['plans', 'unit_plan', 'floor_plan', 'master_plan', 'floor', 'unit'], 'Plans'),
+    (['gallery'], 'Gallery'),
+    (['location', 'location_map', 'location_highlights', 'hospitals',
+      'commercial', 'colleges'], 'Location'),
+    (['customer_reviews', 'reviews', 'testimonial'], 'Reviews'),
+    (['our_projects', 'other_projects', 'nav_proj'], 'Other Projects'),
+    (['footer', 'footer_widget'], 'Footer'),
+    (['sticky', 'fixed', 'float'], 'Persistent'),
+    (['enquire', 'enquiry', 'enqiure', 'call', 'whatsapp', 'brochure',
+      'submit', 'request', 'schedule', 'book'], 'Enquire'),
+]
+
+def _guess_section(click_id: str) -> str:
+    norm = click_id.lower().replace('-', '_')
+    for keywords, section in _SECTION_MAP:
+        if any(kw in norm for kw in keywords):
+            return section
+    return 'Other'
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates')
 
@@ -32,10 +60,53 @@ def slugify(text: str) -> str:
     return re.sub(r'[^a-z0-9]+', '-', text.lower()).strip('-')
 
 
-def clean_label(raw: str) -> str:
-    """Make raw click IDs more readable: location-map → Location Map"""
-    s = re.sub(r'[-_]+', ' ', raw)
-    return s.title()
+def clean_label(raw: str, project_name: str = '') -> str:
+    """
+    Make raw click IDs readable per §2.4:
+    strip tvs_ and project prefix, strip lp_/pp_/mob_ tokens,
+    strip _btn/_button/_link suffix, sentence case.
+    """
+    s = raw.lower()
+
+    # Strip tvs_ prefix
+    if s.startswith('tvs_'):
+        s = s[4:]
+
+    # Strip project name prefix (try full slug then 3-char abbreviation)
+    if project_name:
+        proj = re.sub(r'[^a-z0-9]+', '_', project_name.lower()).strip('_')
+        proj = re.sub(r'^tvs_', '', proj)
+        for candidate in (proj, proj[:3]):
+            if len(candidate) >= 2 and s.startswith(candidate + '_'):
+                s = s[len(candidate) + 1:]
+                break
+
+    # Strip <abbrev>_lp_ / <abbrev>_pp_ / <abbrev>_mob_ patterns
+    # e.g. vv_lp_, ss_pp_, lux_mob_
+    s = re.sub(r'^[a-z0-9]{1,5}_(lp|pp|mob)_', '', s)
+
+    # Strip bare page-type tokens at the front
+    for pfx in ('lp_', 'pp_', 'mob_'):
+        if s.startswith(pfx):
+            s = s[len(pfx):]
+            # Re-try project strip after page-type token
+            if project_name:
+                proj = re.sub(r'[^a-z0-9]+', '_', project_name.lower()).strip('_')
+                proj = re.sub(r'^tvs_', '', proj)
+                for candidate in (proj, proj[:3]):
+                    if len(candidate) >= 2 and s.startswith(candidate + '_'):
+                        s = s[len(candidate) + 1:]
+                        break
+            break
+
+    # Strip trailing noise
+    for sfx in ('_button', '_btn', '_link', '_cta'):
+        if s.endswith(sfx):
+            s = s[:-len(sfx)]
+            break
+
+    s = re.sub(r'[-_]+', ' ', s).strip()
+    return s.capitalize() if s else raw
 
 
 # ── Attention model ────────────────────────────────────────────────────────────
@@ -316,6 +387,9 @@ def generate_report(
 
     Signature unchanged from v1 so app.py needs no modification.
     """
+    log.info('generate_report: client=%r  projects_in_data=%d  links=%d',
+             client_name, len(project_data), len(links))
+
     env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
     template = env.get_template('report_template.html')
 
@@ -328,6 +402,7 @@ def generate_report(
         url_lookup[key][link['page_type']] = link['url']
 
     configured_sheets = set(url_lookup.keys())
+    log.info('configured sheets: %s', sorted(configured_sheets))
 
     projects = []
     portfolio_flags: list[str] = []
@@ -338,13 +413,16 @@ def generate_report(
     for sheet_name, data in project_data.items():
         sheet_key = sheet_name.strip().lower()
         if sheet_key not in configured_sheets:
-            # Still surface flags
+            log.debug('skipping sheet %r (not in configured links)', sheet_name)
             portfolio_flags.extend(data.get('flags', []))
             continue
 
         portfolio_flags.extend(data.get('flags', []))
         sheet_screenshots = screenshots.get(sheet_name, {})
         urls = url_lookup.get(sheet_key, {})
+        log.info('processing sheet %r  pages=%s  has_screenshots=%s',
+                 sheet_name, list(data.get('pages', {}).keys()),
+                 list(sheet_screenshots.keys()))
 
         page_panels = []
         proj_page_view_users = 0
@@ -355,11 +433,16 @@ def generate_report(
 
             page_data = data.get('pages', {}).get(page_type)
             if page_data is None:
+                log.debug('[%s] no page data for page_type=%r', sheet_name, page_type)
                 continue
 
             items = page_data.get('items', [])
             scroll = page_data.get('scroll')
             mode = page_data.get('mode', 'clicks_only')
+            log.info('[%s/%s] mode=%s  items=%d  scroll=%s  screenshot=%s',
+                     sheet_name, page_type, mode, len(items),
+                     f"pv={scroll['page_view_users']} buckets={len(scroll['buckets'])}" if scroll else 'none',
+                     'yes' if sheet_screenshots.get(page_type) else 'no')
             page_sc = sheet_screenshots.get(page_type, {})
             depths = page_sc.get('depths', {})
             page_height = page_sc.get('page_height', 0)
@@ -384,7 +467,7 @@ def generate_report(
 
                 elements.append({
                     'click_id': cid,
-                    'display_name': clean_label(cid),
+                    'display_name': clean_label(cid, sheet_name),
                     'category': item.get('category', 'unclassified'),
                     'clicks': item['clicks'],
                     'users': item['users'],
@@ -401,6 +484,12 @@ def generate_report(
             classified = [e for e in elements if e['category'] in (
                 'primary_cta', 'secondary_cta', 'unclassified'
             )]
+            log.debug('[%s/%s] classified=%d  (primary=%d secondary=%d unclassified=%d noise=%d)',
+                      sheet_name, page_type, len(classified),
+                      sum(1 for e in elements if e['category'] == 'primary_cta'),
+                      sum(1 for e in elements if e['category'] == 'secondary_cta'),
+                      sum(1 for e in elements if e['category'] == 'unclassified'),
+                      sum(1 for e in elements if e['category'] == 'noise'))
             assign_verdicts(classified)
             # Copy verdicts back onto the full elements list
             verdict_map = {e['click_id']: e['verdict'] for e in classified}
@@ -427,15 +516,49 @@ def generate_report(
             if not top_ctas:
                 top_ctas = sorted_elements[:6]
 
-            # Problem CTAs (D block)
+            # Problem CTAs (D block) — exclude anything already in top_ctas (§8.3)
+            top_cta_ids = {e['click_id'] for e in top_ctas}
             problem_ctas = {
                 VERDICT_SEEN_IGNORED: [],
                 VERDICT_BURIED: [],
                 VERDICT_DEAD: [],
             }
             for e in sorted_elements:
-                if e['verdict'] in problem_ctas:
+                if e['verdict'] in problem_ctas and e['click_id'] not in top_cta_ids:
                     problem_ctas[e['verdict']].append(e)
+
+            log.debug(
+                '[%s/%s] top_ctas=%d  problem seen=%d buried=%d dead=%d',
+                sheet_name, page_type,
+                len(top_ctas),
+                len(problem_ctas[VERDICT_SEEN_IGNORED]),
+                len(problem_ctas[VERDICT_BURIED]),
+                len(problem_ctas[VERDICT_DEAD]),
+            )
+
+            # Section map (B block) — keyword-based grouping without DOM geometry
+            section_buckets: dict[str, list] = {}
+            for e in sorted_elements:
+                sec = _guess_section(e['click_id'])
+                e['section'] = sec
+                section_buckets.setdefault(sec, []).append(e)
+
+            # Build section rows ordered by first appearance in sorted_elements
+            seen_sections: list[str] = []
+            for e in sorted_elements:
+                if e['section'] not in seen_sections:
+                    seen_sections.append(e['section'])
+            section_rows = []
+            for sec in seen_sections:
+                elems = section_buckets[sec]
+                total_clicks = sum(e['clicks'] for e in elems)
+                section_rows.append({
+                    'name': sec,
+                    'cta_count': len(elems),
+                    'total_clicks': total_clicks,
+                })
+            log.debug('[%s/%s] sections=%s', sheet_name, page_type,
+                      [(r['name'], r['cta_count']) for r in section_rows])
 
             # Append blocks
             appendix_items = sorted_elements  # all, unfiltered
@@ -479,6 +602,7 @@ def generate_report(
                 'page_height': page_height,
                 'viewport_height': viewport_height,
                 'screenshot': page_sc.get('screenshot', ''),
+                'mobile_screenshot': page_sc.get('mobile_screenshot', ''),
                 'found_count': page_sc.get('found_count', 0),
                 # Attention
                 'svg': svg,
@@ -491,6 +615,7 @@ def generate_report(
                 'elements': sorted_elements,
                 'top_ctas': top_ctas,
                 'problem_ctas': problem_ctas,
+                'section_rows': section_rows,
                 'appendix_items': appendix_items,
                 'top_cta_name': top_cta_name,
                 'top_cta_adj': top_cta_adj,

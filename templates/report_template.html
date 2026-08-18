@@ -318,7 +318,22 @@
       width: 100%; height: auto; display: block;
       border: 1px solid var(--gray-200); border-radius: 2px;
     }
+    .page-screenshot img.mobile-view {
+      max-width: 390px; margin: 0 auto;
+    }
     .page-screenshot-note { font-size: 11px; color: var(--gray-500); margin-top: 8px; font-style: italic; }
+    .screenshot-toggle {
+      display: inline-flex; gap: 0; margin-bottom: 10px;
+      border: 1px solid var(--gray-300); border-radius: 4px; overflow: hidden;
+    }
+    .screenshot-toggle button {
+      padding: 4px 12px; font-size: 11px; font-weight: 500; cursor: pointer;
+      border: none; background: var(--white); color: var(--gray-600);
+      transition: background 0.15s, color 0.15s;
+    }
+    .screenshot-toggle button.active {
+      background: var(--gray-800); color: var(--white);
+    }
 
     /* ── Flag list ── */
     .flags-list { list-style: none; padding: 0; }
@@ -590,8 +605,18 @@
 
         {# ── Page screenshot ── #}
         {% if pp.screenshot %}
+        {% set sc_id = project.name | replace(' ','_') ~ '_' ~ pp.page_type %}
         <div class="page-screenshot">
-          <img src="data:image/jpeg;base64,{{ pp.screenshot }}"
+          {% if pp.mobile_screenshot %}
+          <div class="screenshot-toggle">
+            <button class="active" onclick="switchView('{{ sc_id }}','desktop',this)">Desktop</button>
+            <button onclick="switchView('{{ sc_id }}','mobile',this)">Mobile</button>
+          </div>
+          {% endif %}
+          <img id="sc-{{ sc_id }}"
+               src="data:image/jpeg;base64,{{ pp.screenshot }}"
+               data-desktop="data:image/jpeg;base64,{{ pp.screenshot }}"
+               {% if pp.mobile_screenshot %}data-mobile="data:image/jpeg;base64,{{ pp.mobile_screenshot }}"{% endif %}
                alt="{{ project.name }} {{ pp.title }} screenshot" loading="lazy">
           <div class="page-screenshot-note">
             {% if pp.found_count > 0 %}
@@ -603,10 +628,27 @@
         </div>
         {% endif %}
 
+        {# ── B: Section map ── #}
+        {% if pp.section_rows %}
+        <div class="section-map">
+          <h3>B — Sections</h3>
+          {% for row in pp.section_rows %}
+          <div class="section-row">
+            <div class="section-row-title">{{ row.name }}</div>
+            <div class="section-row-meta">
+              {{ row.cta_count }} CTA{{ 's' if row.cta_count != 1 else '' }}
+              &nbsp;·&nbsp;
+              <strong>{{ "{:,}".format(row.total_clicks) }}</strong> clicks
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
         {# ── C: Top CTAs by depth-adjusted rate ── #}
         {% if pp.has_enough_for_top and pp.top_ctas %}
         <div class="cta-block">
-          <h3>C — What Works (top {{ pp.top_ctas | length }} by depth-adjusted rate)</h3>
+          <h3>C — What Works</h3>
           <div class="cta-grid">
             {% for e in pp.top_ctas %}
             <div class="cta-card">
@@ -841,6 +883,16 @@
     </div>
   </div>
 
+  <script>
+  function switchView(id, view, btn) {
+    const img = document.getElementById('sc-' + id);
+    if (!img) return;
+    img.src = view === 'mobile' ? img.dataset.mobile : img.dataset.desktop;
+    img.classList.toggle('mobile-view', view === 'mobile');
+    btn.closest('.screenshot-toggle').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  </script>
   <script>
   (function () {
     // Mark JS as enabled so CSS can show all panels in no-JS fallback

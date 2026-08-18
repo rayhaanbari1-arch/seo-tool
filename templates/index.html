@@ -35,6 +35,11 @@
           <h2>Clients</h2>
           <button class="btn btn-primary btn-sm" id="add-client-btn">+ New Client</button>
         </div>
+        <div class="sidebar-csv-row">
+          <button class="btn btn-outline btn-sm" id="import-csv-btn">Import CSV</button>
+          <a class="btn btn-outline btn-sm" onclick="downloadCsvTemplate()" href="#">Download Template</a>
+        </div>
+        <input type="file" id="csv-file-input" accept=".csv" style="display:none">
 
         <div class="client-list" id="client-list">
           <!-- Populated by JS -->
@@ -66,6 +71,23 @@
           </div>
 
           <button class="btn btn-outline" id="add-group-btn">+ Add Link Group</button>
+
+          <!-- GTM Container Upload -->
+          <div class="gtm-section" id="gtm-section">
+            <div class="gtm-section-header">
+              <div>
+                <h3 class="gtm-section-title">GTM Container</h3>
+                <p class="gtm-section-desc">Upload the GTM container JSON to enable precise element matching when generating reports.</p>
+              </div>
+              <span class="gtm-badge" id="gtm-badge"></span>
+            </div>
+            <div class="gtm-upload-row">
+              <input type="file" id="gtm-json-input" accept=".json" style="display:none">
+              <button class="btn btn-outline btn-sm" id="gtm-upload-btn">Upload GTM JSON</button>
+              <button class="btn btn-danger btn-sm hidden" id="gtm-remove-btn">Remove</button>
+            </div>
+            <div class="gtm-mappings-preview hidden" id="gtm-mappings-preview"></div>
+          </div>
         </div>
       </main>
 

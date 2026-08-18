@@ -1,11 +1,20 @@
+import csv
 import os
 import io
 import asyncio
 import json
+import logging
 import threading
+import time
 from datetime import datetime
 from flask import Flask, render_template, request, Response, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    datefmt='%H:%M:%S',
+)
 
 app = Flask(__name__)
 
@@ -65,6 +74,38 @@ class PageLink(db.Model):
         }
 
 
+class GTMContainer(db.Model):
+    __tablename__ = 'gtm_containers'
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False, unique=True)
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    mapping_count = db.Column(db.Integer, default=0)
+    mappings_json = db.Column(db.Text, nullable=False, default='[]')
+
+    client = db.relationship('Client', backref=db.backref('gtm_container', uselist=False))
+
+    def get_map(self) -> dict:
+        """Return {event_name: css_selector} for fast lookup in screenshot engine.
+
+        For id-type mappings, also indexes by selector_value (the raw element id),
+        because GA4 records the element's id attribute as the Click ID — which is
+        what the Excel sheet contains — not the human-readable GTM event name.
+        """
+        result = {}
+        for m in json.loads(self.mappings_json):
+            result[m['event_name']] = m['css_selector']
+            if m.get('selector_type') == 'id' and m.get('selector_value'):
+                result[m['selector_value']] = m['css_selector']
+        return result
+
+    def to_dict(self):
+        return {
+            'mapping_count': self.mapping_count,
+            'uploaded_at': self.uploaded_at.isoformat() if self.uploaded_at else None,
+            'mappings': json.loads(self.mappings_json),
+        }
+
+
 class ReportJob(db.Model):
     __tablename__ = 'report_jobs'
     id = db.Column(db.Integer, primary_key=True)
@@ -94,6 +135,14 @@ class ReportJob(db.Model):
 
 # ─── Background Report Worker ────────────────────────────────────────────────
 
+_job_log = logging.getLogger('report_job')
+_cancel_flags: set[int] = set()   # job_ids that have been cancelled
+
+
+def _is_cancelled(job_id: int) -> bool:
+    return job_id in _cancel_flags
+
+
 def _run_report_job(job_id, excel_bytes, links):
     """Run report generation in a background thread."""
     with app.app_context():
@@ -103,22 +152,46 @@ def _run_report_job(job_id, excel_bytes, links):
 
         job.status = 'running'
         db.session.commit()
+        t_start = time.time()
+        _job_log.info('job %d started  client=%r  links=%d  excel_size=%d KB',
+                      job_id, job.client_name, len(links), len(excel_bytes) // 1024)
 
         try:
             from src.excel_parser import parse_excel
             from src.screenshot_engine import capture_all_pages
             from src.report_generator import generate_report
 
+            t1 = time.time()
             project_data = parse_excel(io.BytesIO(excel_bytes))
+            _job_log.info('job %d: excel parsed in %.1fs  sheets=%d',
+                          job_id, time.time() - t1, len(project_data))
+
+            if _is_cancelled(job_id):
+                raise InterruptedError('cancelled')
+
+            t2 = time.time()
+            gtm_container = GTMContainer.query.filter_by(client_id=job.client_id).first()
+            gtm_mappings = gtm_container.get_map() if gtm_container else {}
+            _job_log.info('job %d: GTM mappings loaded  count=%d', job_id, len(gtm_mappings))
 
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                screenshots = loop.run_until_complete(capture_all_pages(links, project_data))
+                screenshots = loop.run_until_complete(
+                    capture_all_pages(links, project_data, gtm_mappings)
+                )
             finally:
                 loop.close()
+            _job_log.info('job %d: screenshots done in %.1fs  pages_captured=%d',
+                          job_id, time.time() - t2, sum(len(v) for v in screenshots.values()))
 
+            if _is_cancelled(job_id):
+                raise InterruptedError('cancelled')
+
+            t3 = time.time()
             html = generate_report(job.client_name, project_data, screenshots, links)
+            _job_log.info('job %d: report generated in %.1fs  html_size=%d KB',
+                          job_id, time.time() - t3, len(html) // 1024)
 
             job.report_html = html
             job.status = 'completed'
@@ -126,11 +199,21 @@ def _run_report_job(job_id, excel_bytes, links):
 
             now = datetime.now()
             job.report_name = f"{job.client_name} Event report {now.day} ({now.strftime('%B')}) {now.year}"
+            _job_log.info('job %d COMPLETED in %.1fs total', job_id, time.time() - t_start)
+
+        except InterruptedError:
+            _job_log.info('job %d CANCELLED after %.1fs', job_id, time.time() - t_start)
+            job.status = 'cancelled'
+            job.completed_at = datetime.utcnow()
 
         except Exception as e:
+            _job_log.exception('job %d FAILED after %.1fs: %s', job_id, time.time() - t_start, e)
             job.status = 'failed'
             job.error = str(e)
             job.completed_at = datetime.utcnow()
+
+        finally:
+            _cancel_flags.discard(job_id)
 
         db.session.commit()
 
@@ -173,6 +256,101 @@ def delete_client(client_id):
     db.session.delete(client)
     db.session.commit()
     return '', 204
+
+
+# ─── Client CSV import ────────────────────────────────────────────────────────
+
+CSV_TEMPLATE_ROWS = [
+    ['client_name', 'group_name', 'project_name', 'url', 'page_type'],
+    ['Acme Corp', 'Flagship', 'Acme Tower', 'https://acmecorp.com/lp/tower/', 'lp'],
+    ['Acme Corp', 'Flagship', 'Acme Tower', 'https://acmecorp.com/projects/tower/', 'project'],
+    ['Acme Corp', 'Suburbs', 'Acme Gardens', 'https://acmecorp.com/lp/gardens/', 'lp'],
+]
+
+@app.route('/api/clients/csv-template', methods=['GET'])
+def download_csv_template():
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerows(CSV_TEMPLATE_ROWS)
+    return Response(
+        buf.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename="client_import_template.csv"'}
+    )
+
+
+@app.route('/api/clients/import-csv', methods=['POST'])
+def import_clients_csv():
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'error': 'No file uploaded'}), 400
+
+    try:
+        text = f.read().decode('utf-8-sig')   # handle BOM from Excel CSV exports
+        reader = csv.DictReader(io.StringIO(text))
+        rows = list(reader)
+    except Exception as e:
+        return jsonify({'error': f'Could not parse CSV: {e}'}), 400
+
+    required = {'client_name', 'group_name', 'project_name', 'url', 'page_type'}
+    if not rows:
+        return jsonify({'error': 'CSV is empty'}), 400
+    missing = required - {k.strip().lower() for k in rows[0].keys()}
+    if missing:
+        return jsonify({'error': f'Missing columns: {", ".join(sorted(missing))}'}), 400
+
+    created_clients = 0
+    created_links = 0
+    errors = []
+
+    # Group rows by client_name then group_name
+    for i, row in enumerate(rows, start=2):
+        client_name  = (row.get('client_name')  or '').strip()
+        group_name   = (row.get('group_name')   or '').strip()
+        project_name = (row.get('project_name') or '').strip()
+        url          = (row.get('url')          or '').strip()
+        page_type    = (row.get('page_type')    or 'lp').strip().lower()
+
+        if not client_name or not url:
+            errors.append(f'Row {i}: client_name and url are required — skipped')
+            continue
+        if page_type not in ('lp', 'project'):
+            errors.append(f'Row {i}: page_type must be "lp" or "project", got "{page_type}" — skipped')
+            continue
+
+        client = Client.query.filter_by(name=client_name).first()
+        if not client:
+            client = Client(name=client_name)
+            db.session.add(client)
+            db.session.flush()
+            created_clients += 1
+
+        group = LinkGroup.query.filter_by(client_id=client.id, group_name=group_name).first()
+        if not group:
+            group = LinkGroup(client_id=client.id, group_name=group_name or 'Default')
+            db.session.add(group)
+            db.session.flush()
+
+        link = PageLink(
+            group_id=group.id,
+            project_name=project_name or client_name,
+            url=url,
+            page_type=page_type,
+        )
+        db.session.add(link)
+        created_links += 1
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Database error: {e}'}), 500
+
+    return jsonify({
+        'created_clients': created_clients,
+        'created_links': created_links,
+        'errors': errors,
+    }), 200
 
 
 # ─── Group API ────────────────────────────────────────────────────────────────
@@ -361,6 +539,18 @@ def view_report(job_id):
     return Response(job.report_html, mimetype='text/html')
 
 
+@app.route('/api/reports/<int:job_id>/cancel', methods=['POST'])
+def cancel_report(job_id):
+    job = db.session.get(ReportJob, job_id)
+    if not job:
+        return jsonify({'error': 'Not found'}), 404
+    if job.status not in ('pending', 'running'):
+        return jsonify({'error': f'Job is already {job.status}'}), 400
+    _cancel_flags.add(job_id)
+    _job_log.info('job %d cancel requested', job_id)
+    return jsonify({'ok': True})
+
+
 @app.route('/api/reports/<int:job_id>', methods=['DELETE'])
 def delete_report(job_id):
     job = db.session.get(ReportJob, job_id)
@@ -368,6 +558,82 @@ def delete_report(job_id):
         return jsonify({'error': 'Not found'}), 404
     db.session.delete(job)
     db.session.commit()
+    return '', 204
+
+
+# ─── GTM Container API ───────────────────────────────────────────────────────
+
+@app.route('/api/clients/<int:client_id>/gtm', methods=['GET'])
+def get_gtm(client_id):
+    Client.query.get_or_404(client_id)
+    container = GTMContainer.query.filter_by(client_id=client_id).first()
+    if not container:
+        return jsonify({'mapping_count': 0, 'uploaded_at': None, 'mappings': []})
+    return jsonify(container.to_dict())
+
+
+_gtm_log = logging.getLogger('gtm_upload')
+
+@app.route('/api/clients/<int:client_id>/gtm', methods=['POST'])
+def upload_gtm(client_id):
+    client = Client.query.get_or_404(client_id)
+    gtm_file = request.files.get('gtm_json')
+    if not gtm_file:
+        _gtm_log.warning('upload rejected for client %d (%r) — no file in request',
+                         client_id, client.name)
+        return jsonify({'error': 'No file uploaded'}), 400
+
+    raw_bytes = gtm_file.read()
+    _gtm_log.info('GTM upload for client %d (%r)  file=%r  size=%d KB',
+                  client_id, client.name, gtm_file.filename, len(raw_bytes) // 1024)
+
+    try:
+        data = json.loads(raw_bytes)
+    except json.JSONDecodeError as e:
+        _gtm_log.error('GTM upload failed for client %d — invalid JSON: %s', client_id, e)
+        return jsonify({'error': f'Invalid JSON: {e}'}), 400
+
+    try:
+        from src.gtm_parser import parse_gtm_container
+        mappings = parse_gtm_container(data)
+    except ValueError as e:
+        _gtm_log.error('GTM upload failed for client %d — container parse error: %s',
+                       client_id, e)
+        return jsonify({'error': str(e)}), 400
+
+    if len(mappings) == 0:
+        _gtm_log.warning('GTM upload for client %d produced 0 mappings — '
+                         'container parsed OK but no usable click triggers found. '
+                         'Check gtm_parser logs above for skip reasons.',
+                         client_id)
+
+    container = GTMContainer.query.filter_by(client_id=client_id).first()
+    if not container:
+        container = GTMContainer(client_id=client_id)
+        db.session.add(container)
+
+    container.mappings_json = json.dumps(mappings)
+    container.mapping_count = len(mappings)
+    container.uploaded_at = datetime.utcnow()
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        _gtm_log.exception('GTM upload DB commit failed for client %d: %s', client_id, e)
+        return jsonify({'error': 'Failed to save mappings — database error'}), 500
+
+    _gtm_log.info('GTM upload saved for client %d (%r): %d mappings stored',
+                  client_id, client.name, len(mappings))
+    return jsonify(container.to_dict()), 200
+
+
+@app.route('/api/clients/<int:client_id>/gtm', methods=['DELETE'])
+def delete_gtm(client_id):
+    container = GTMContainer.query.filter_by(client_id=client_id).first()
+    if container:
+        db.session.delete(container)
+        db.session.commit()
     return '', 204
 
 
@@ -424,4 +690,4 @@ with app.app_context():
     db.create_all()
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, use_reloader=False, host='0.0.0.0', port=5000)

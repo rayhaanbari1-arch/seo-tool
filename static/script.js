@@ -16,6 +16,10 @@ document.addEventListener('DOMContentLoaded', () => {
   loadClients();
 
   document.getElementById('add-client-btn').addEventListener('click', createNewClient);
+  document.getElementById('import-csv-btn').addEventListener('click', () => {
+    document.getElementById('csv-file-input').click();
+  });
+  document.getElementById('csv-file-input').addEventListener('change', handleCsvImport);
   document.getElementById('add-group-btn').addEventListener('click', addGroup);
   document.getElementById('save-client-btn').addEventListener('click', saveClient);
   document.getElementById('delete-client-btn').addEventListener('click', deleteClient);
@@ -96,6 +100,7 @@ function selectClient(id) {
   });
 
   renderEditor();
+  loadGtmStatus(id);
 }
 
 // ─── Editor ───────────────────────────────────────────────────────────────────
@@ -521,6 +526,14 @@ async function loadReports() {
         actionsHtml = `
           <button class="btn btn-danger btn-sm" onclick="deleteReport(${report.id})">Delete</button>
         `;
+      } else if (report.status === 'pending' || report.status === 'running') {
+        actionsHtml = `
+          <button class="btn btn-danger btn-sm" onclick="cancelReport(${report.id}, this)">Cancel</button>
+        `;
+      } else if (report.status === 'cancelled') {
+        actionsHtml = `
+          <button class="btn btn-danger btn-sm" onclick="deleteReport(${report.id})">Delete</button>
+        `;
       }
 
       if (report.status === 'pending' || report.status === 'running') {
@@ -532,7 +545,7 @@ async function loadReports() {
           <div class="report-item-name">${escHtml(displayName)}</div>
           <div class="report-item-meta">${escHtml(createdAt)}${report.status === 'failed' ? ' — ' + escHtml(report.error || 'Unknown error') : ''}</div>
         </div>
-        <span class="report-status ${report.status}">${report.status === 'running' ? 'Generating…' : report.status}</span>
+        <span class="report-status ${report.status}">${{running:'Generating…',pending:'Queued',cancelled:'Cancelled',completed:'Completed',failed:'Failed'}[report.status] ?? report.status}</span>
         <div class="report-item-actions">${actionsHtml}</div>
       `;
 
@@ -580,6 +593,51 @@ async function deleteReport(id) {
   loadReports();
 }
 
+async function cancelReport(id, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Cancelling…';
+  await fetch(`/api/reports/${id}/cancel`, { method: 'POST' });
+  loadReports();
+}
+
+async function handleCsvImport(e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+
+  const btn = document.getElementById('import-csv-btn');
+  btn.disabled = true;
+  btn.textContent = 'Importing…';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/api/clients/import-csv', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+
+    let msg = `Imported: ${data.created_clients} new client(s), ${data.created_links} link(s).`;
+    if (data.errors && data.errors.length) {
+      msg += `\n\nWarnings:\n${data.errors.join('\n')}`;
+    }
+    alert(msg);
+    loadClients();
+  } catch (err) {
+    alert(`CSV import failed: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Import CSV';
+  }
+}
+
+function downloadCsvTemplate() {
+  const a = document.createElement('a');
+  a.href = '/api/clients/csv-template';
+  a.download = 'client_import_template.csv';
+  a.click();
+}
+
 // ─── Validation on client change ──────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -591,6 +649,108 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+// ─── GTM Container Upload ────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('gtm-upload-btn').addEventListener('click', () => {
+    document.getElementById('gtm-json-input').click();
+  });
+  document.getElementById('gtm-json-input').addEventListener('change', handleGtmFileSelect);
+  document.getElementById('gtm-remove-btn').addEventListener('click', removeGtm);
+});
+
+async function loadGtmStatus(clientId) {
+  const badge    = document.getElementById('gtm-badge');
+  const preview  = document.getElementById('gtm-mappings-preview');
+  const removeBtn = document.getElementById('gtm-remove-btn');
+
+  badge.textContent = '';
+  badge.className = 'gtm-badge';
+  preview.classList.add('hidden');
+  preview.innerHTML = '';
+  removeBtn.classList.add('hidden');
+
+  if (!clientId) return;
+
+  try {
+    const res = await fetch(`/api/clients/${clientId}/gtm`);
+    const data = await res.json();
+
+    if (data.mapping_count > 0) {
+      const date = data.uploaded_at ? new Date(data.uploaded_at).toLocaleDateString() : '';
+      badge.textContent = `${data.mapping_count} mappings${date ? ' · ' + date : ''}`;
+      badge.classList.add('gtm-badge-ok');
+      removeBtn.classList.remove('hidden');
+
+      // Show a preview table of the first 10 mappings
+      const shown = data.mappings.slice(0, 10);
+      const more  = data.mappings.length - shown.length;
+      const rows  = shown.map(m => `
+        <tr>
+          <td><code class="gtm-map-event">${escHtml(m.event_name)}</code></td>
+          <td><code class="gtm-map-sel">${escHtml(m.css_selector)}</code></td>
+        </tr>
+      `).join('');
+      preview.innerHTML = `
+        <table class="gtm-map-table">
+          <thead><tr><th>Event Name</th><th>CSS Selector</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        ${more > 0 ? `<p class="gtm-map-more">+ ${more} more mappings</p>` : ''}
+      `;
+      preview.classList.remove('hidden');
+    } else {
+      badge.textContent = 'No GTM container';
+      badge.classList.add('gtm-badge-none');
+    }
+  } catch (e) {
+    badge.textContent = 'Could not load GTM status';
+    badge.classList.add('gtm-badge-none');
+  }
+}
+
+async function handleGtmFileSelect() {
+  const input    = document.getElementById('gtm-json-input');
+  const file     = input.files[0];
+  if (!file || !activeClientId) return;
+
+  const badge = document.getElementById('gtm-badge');
+  badge.textContent = 'Uploading…';
+  badge.className = 'gtm-badge';
+
+  const fd = new FormData();
+  fd.append('gtm_json', file);
+
+  try {
+    const res = await fetch(`/api/clients/${activeClientId}/gtm`, {
+      method: 'POST',
+      body: fd
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      badge.textContent = data.error || 'Upload failed';
+      badge.classList.add('gtm-badge-err');
+      return;
+    }
+
+    await loadGtmStatus(activeClientId);
+  } catch (e) {
+    badge.textContent = 'Upload failed';
+    badge.classList.add('gtm-badge-err');
+  } finally {
+    input.value = '';
+  }
+}
+
+async function removeGtm() {
+  if (!activeClientId) return;
+  if (!confirm('Remove GTM container mappings for this client?')) return;
+
+  await fetch(`/api/clients/${activeClientId}/gtm`, { method: 'DELETE' });
+  await loadGtmStatus(activeClientId);
+}
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 

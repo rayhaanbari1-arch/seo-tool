@@ -132,6 +132,20 @@ body {
   text-transform: uppercase;
 }
 
+.sidebar-csv-row {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--gray-200);
+  background: var(--gray-50);
+}
+
+.sidebar-csv-row .btn {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+}
+
 .client-list {
   flex: 1;
   overflow-y: auto;
@@ -725,6 +739,11 @@ body {
   color: #E74C3C;
 }
 
+.report-status.cancelled {
+  background: #F5F5F5;
+  color: #888;
+}
+
 .report-status.running::before {
   content: '';
   width: 10px;
@@ -733,6 +752,103 @@ body {
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+/* ── GTM Container (client editor) ──────────────── */
+
+.gtm-section {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid #EEF1F6;
+}
+
+.gtm-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.gtm-section-title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2D3748;
+}
+
+.gtm-section-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #8A97AB;
+}
+
+.gtm-badge {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.gtm-badge-ok   { background: #F0FAF4; color: #27AE60; }
+.gtm-badge-none { background: #F7F9FC; color: #9AA5B8; }
+.gtm-badge-err  { background: #FEF0F0; color: #E74C3C; }
+
+.gtm-upload-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.gtm-mappings-preview {
+  margin-top: 14px;
+  overflow-x: auto;
+}
+
+.gtm-map-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.gtm-map-table th {
+  text-align: left;
+  padding: 6px 10px;
+  background: #F7F9FC;
+  border-bottom: 1px solid #DDE3EC;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #5A6A85;
+  font-weight: 600;
+}
+
+.gtm-map-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #EEF1F6;
+  vertical-align: middle;
+}
+
+.gtm-map-table tr:last-child td { border-bottom: none; }
+
+.gtm-map-event {
+  background: #F0F4FF;
+  color: #2563EB;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.gtm-map-sel {
+  color: #5A6A85;
+  font-size: 11px;
+}
+
+.gtm-map-more {
+  font-size: 12px;
+  color: #9AA5B8;
+  margin: 6px 0 0;
 }
 
 /* ── Utility ──────────────────────────────────────── */

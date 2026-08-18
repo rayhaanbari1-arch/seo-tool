@@ -98,5 +98,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,          # Swap in a .ico file here to set the taskbar icon
+    icon=os.path.join(SPECPATH, 'app.ico'),
 )
